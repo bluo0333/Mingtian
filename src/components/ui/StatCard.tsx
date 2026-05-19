@@ -1,3 +1,5 @@
+import { motion } from 'framer-motion';
+
 interface StatCardProps {
   value: string;
   label: string;
@@ -6,13 +8,17 @@ interface StatCardProps {
 
 export default function StatCard({ value, label, isAccent }: StatCardProps) {
   return (
-    <div className="bg-white dark:bg-charcoal-800 border border-jade-200 dark:border-dark-700/20 rounded-xl p-4">
-      <div className={`text-xl font-medium ${isAccent ? 'text-jade-600 dark:text-dark-400' : 'text-jade-800 dark:text-dark-50'}`}>
+    <motion.div
+      whileHover={{ y: -2 }}
+      transition={{ type: 'spring', stiffness: 280, damping: 22 }}
+      className="card-soft p-4 sm:p-5"
+    >
+      <div className={`text-3xl font-semibold leading-none ${isAccent ? 'text-jade-700 dark:text-dark-200' : 'jade-text dark:text-dark-100'}`}>
         {value}
       </div>
-      <div className="text-xs text-jade-500 dark:text-charcoal-400 mt-1">
+      <div className="text-sm text-muted dark:text-charcoal-200 mt-2">
         {label}
       </div>
-    </div>
+    </motion.div>
   );
 }

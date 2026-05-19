@@ -4,7 +4,7 @@ interface SectionHeaderProps {
 
 export default function SectionHeader({ title }: SectionHeaderProps) {
   return (
-    <div className="text-xs font-medium uppercase tracking-wider text-jade-500 dark:text-charcoal-400 mb-3">
+    <div className="text-sm font-semibold uppercase tracking-[0.13em] text-jade-600/90 dark:text-dark-300 mb-3">
       {title}
     </div>
   );

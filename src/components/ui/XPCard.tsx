@@ -1,3 +1,5 @@
+import { motion } from 'framer-motion';
+
 interface XPCardProps {
   label: string;
   current: number;
@@ -5,19 +7,21 @@ interface XPCardProps {
 }
 
 export default function XPCard({ label, current, total }: XPCardProps) {
-  const percentage = (current / total) * 100;
+  const percentage = total > 0 ? (current / total) * 100 : 0;
 
   return (
-    <div className="bg-white dark:bg-charcoal-800 border border-jade-200 dark:border-dark-700/20 rounded-xl p-4">
-      <div className="flex justify-between items-center mb-3">
-        <div className="text-xs text-jade-600 dark:text-charcoal-300">{label}</div>
-        <div className="text-xs font-medium text-jade-600 dark:text-dark-400">{current} / {total} XP</div>
+    <div className="card-soft p-4 sm:p-5">
+      <div className="flex justify-between items-center mb-3.5">
+        <div className="text-sm text-muted dark:text-charcoal-200">{label}</div>
+        <div className="text-sm font-semibold text-jade-700 dark:text-dark-200">{current} / {total} XP</div>
       </div>
-      <div className="h-2 bg-jade-100 dark:bg-charcoal-700 rounded-full overflow-hidden">
-        <div
-          className="h-full bg-jade-600 dark:bg-dark-500 rounded-full transition-all duration-300"
-          style={{ width: `${percentage}%` }}
-        ></div>
+      <div className="h-2.5 bg-jade-100/80 dark:bg-charcoal-700/70 rounded-full overflow-hidden">
+        <motion.div
+          className="h-full rounded-full bg-gradient-to-r from-jade-700 via-jade-600 to-jade-400 dark:from-dark-500 dark:to-dark-300"
+          initial={{ width: 0 }}
+          animate={{ width: `${Math.max(0, Math.min(100, percentage))}%` }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
+        />
       </div>
     </div>
   );

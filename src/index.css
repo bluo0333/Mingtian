@@ -2,4 +2,82 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom styles if needed */
+:root {
+  --jade-dark: #0f2e2a;
+  --jade-primary: #1f6b63;
+  --jade-mid: #2a7d73;
+  --jade-light: #3d9187;
+  --cream-bg: #fdfbf7;
+  --cream-card: #f7f4ee;
+  --text-primary: #163530;
+  --text-secondary: #687771;
+  --gold-accent: #d4a95a;
+  --success-green: #5c9b73;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  body {
+    background-color: var(--cream-bg);
+    color: var(--text-primary);
+    @apply antialiased;
+  }
+
+  html.dark body {
+    @apply bg-charcoal-900 text-dark-100;
+  }
+}
+
+@layer components {
+  .hero-gradient {
+    background:
+      radial-gradient(circle at 88% 28%, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0) 42%),
+      linear-gradient(146deg, var(--jade-primary) 0%, var(--jade-mid) 58%, var(--jade-light) 100%);
+  }
+
+  .dark .hero-gradient {
+    background:
+      radial-gradient(circle at 88% 28%, rgba(212, 169, 90, 0.28) 0%, rgba(212, 169, 90, 0) 44%),
+      linear-gradient(146deg, #0b1513 0%, #121b18 58%, #17231f 100%);
+  }
+
+  .card-soft {
+    @apply rounded-3xl shadow-soft;
+    border: 1px solid rgba(211, 232, 228, 0.9);
+    background-color: var(--cream-card);
+  }
+
+  .dark .card-soft {
+    @apply shadow-card;
+    border: 1px solid rgba(115, 79, 31, 0.45);
+    background-color: #1c2420;
+  }
+
+  .floating-dock {
+    @apply fixed bottom-4 left-1/2 z-40 w-[calc(100%-1.25rem)] max-w-md -translate-x-1/2 rounded-3xl px-2 py-2 shadow-dock backdrop-blur-md;
+    border: 1px solid rgba(211, 232, 228, 0.9);
+    background-color: var(--cream-card);
+  }
+
+  .dark .floating-dock {
+    border: 1px solid rgba(115, 79, 31, 0.5);
+    background-color: #121815;
+  }
+
+  .text-muted {
+    color: var(--text-secondary);
+  }
+
+  .jade-text {
+    color: var(--text-primary);
+  }
+
+  .cream-bg {
+    background-color: var(--cream-bg);
+  }
+}

@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -7,48 +8,61 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Light mode
         jade: {
-          50: '#eef6f3',
-          100: '#d4ebe4',
-          200: '#a9d7c9',
-          300: '#7ec3ae',
-          400: '#53af93',
-          500: '#4a7c6f', // primary
-          600: '#3a6357',
-          700: '#2a4a3f',
-          800: '#1a3127',
-          900: '#0a1810',
+          50: '#e9f4f1',
+          100: '#d3e8e4',
+          200: '#b4d8d2',
+          300: '#8fc4bc',
+          400: '#65aca1',
+          500: '#3d9187',
+          600: '#2a7d73',
+          700: '#1f6b63',
+          800: '#163530',
+          900: '#0f2e2a',
         },
-        cream: '#faf6ef',
-        // Dark mode
+        cream: {
+          50: '#fdfbf7',
+          100: '#f7f4ee',
+          200: '#eee8de',
+        },
+        success: '#5C9B73',
         dark: {
-          50: '#f0e4b8',
-          100: '#eddfa0',
-          200: '#e4d280',
-          300: '#dbc560',
-          400: '#d2b840',
-          500: '#b8962a', // gold
-          600: '#9b7b22',
-          700: '#7e601a',
-          800: '#614512',
-          900: '#442a0a',
+          50: '#f5ecd8',
+          100: '#eddcae',
+          200: '#e4c97f',
+          300: '#d4a95a',
+          400: '#c79445',
+          500: '#b38037',
+          600: '#93672b',
+          700: '#734f1f',
+          800: '#533713',
+          900: '#382308',
         },
         charcoal: {
-          50: '#f5f5f0',
-          100: '#e8e8e0',
-          200: '#d1d1c1',
-          300: '#babba2',
-          400: '#a3a483',
-          500: '#8c8d64',
-          600: '#6b6b4d',
-          700: '#4a4936',
-          800: '#29271f',
-          900: '#181810', // primary dark
+          50: '#ecefeb',
+          100: '#d8ded8',
+          200: '#b7c1b9',
+          300: '#92a096',
+          400: '#728178',
+          500: '#55645c',
+          600: '#3b4742',
+          700: '#2a332f',
+          800: '#1c2420',
+          900: '#121815',
         },
+        ink: {
+          900: '#163530',
+          700: '#687771',
+        },
+        gold: '#D4A95A',
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['"SF Pro Display"', '"SF Pro Text"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+      },
+      boxShadow: {
+        soft: '0 10px 40px rgba(20, 50, 45, 0.08)',
+        dock: '0 12px 36px rgba(20, 50, 45, 0.16)',
+        card: '0 6px 22px rgba(20, 50, 45, 0.07)',
       },
     },
   },

@@ -13,22 +13,22 @@ export default function BottomNavigation() {
   const location = useLocation();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-charcoal-900 border-t border-jade-200 dark:border-dark-700/20 px-2 py-2 flex justify-around">
+    <nav className="floating-dock">
       {navItems.map((item) => {
         const isActive = location.pathname === item.path;
         return (
           <Link
             key={item.path}
             to={item.path}
-            className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${
+            className={`flex min-w-[58px] flex-col items-center gap-1 rounded-2xl px-2 py-1.5 text-[11px] font-medium transition-colors ${
               isActive
-                ? 'text-jade-600 dark:text-dark-400'
-                : 'text-jade-400 dark:text-charcoal-400'
+                ? 'bg-jade-100/75 text-jade-700 dark:bg-charcoal-700/65 dark:text-dark-200'
+                : 'text-jade-400 dark:text-charcoal-300'
             }`}
           >
-            <item.icon size={18} />
-            <span className="text-xs">{item.label}</span>
-            {isActive && <div className="w-1 h-1 bg-jade-600 dark:bg-dark-400 rounded-full mt-1"></div>}
+            <item.icon size={17} strokeWidth={2.2} />
+            <span>{item.label}</span>
+            {isActive && <div className="mt-0.5 h-1 w-1 rounded-full bg-jade-600 dark:bg-dark-300" />}
           </Link>
         );
       })}

@@ -1,71 +1,196 @@
 import { motion } from 'framer-motion';
-import { Wifi, Battery, Plus } from 'lucide-react';
-import TaskCard from '../../components/ui/TaskCard';
+import { Battery, Plus, Wifi } from 'lucide-react';
+import { FormEvent, useMemo, useState } from 'react';
+import LatticeFade from '../../components/ui/LatticeFade';
 import SectionHeader from '../../components/ui/SectionHeader';
+import TaskCard from '../../components/ui/TaskCard';
+import { getPlannedTasks, getTodaysTasks, type Task, useApp } from '../../context/AppContext';
 
 export default function TasksScreen() {
+  const {
+    state: { tasks, darkMode },
+    addTask,
+    completeStep,
+    completeTask,
+    deleteTask,
+  } = useApp();
+
+  const [name, setName] = useState('');
+  const [stepsText, setStepsText] = useState('');
+  const [xp, setXp] = useState('30');
+  const [isPlanned, setIsPlanned] = useState(false);
+
+  const todayTasks = useMemo(() => getTodaysTasks(tasks), [tasks]);
+  const plannedTasks = useMemo(() => getPlannedTasks(tasks), [tasks]);
+
+  const handleAddTask = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const parsedXp = Number.parseInt(xp, 10);
+    addTask({
+      name,
+      stepsText,
+      xp: Number.isNaN(parsedXp) ? 30 : parsedXp,
+      isPlanned,
+    });
+
+    setName('');
+    setStepsText('');
+    setXp('30');
+    setIsPlanned(false);
+  };
+
+  const summarizeTask = (task: Task): string => {
+    if (task.deadline) {
+      return `Due ${task.deadline}`;
+    }
+
+    if (task.steps.length === 0) {
+      return task.isDone ? 'Task complete' : 'No steps';
+    }
+
+    const doneSteps = task.steps.filter((step) => step.done).length;
+    if (task.isDone) {
+      return `${task.steps.length}/${task.steps.length} steps done`;
+    }
+
+    if (doneSteps === 0) {
+      return `${task.steps.length} steps`;
+    }
+
+    return `${doneSteps} of ${task.steps.length} steps`;
+  };
+
+  const completeNextStep = (task: Task): void => {
+    const nextStep = task.steps.find((step) => !step.done);
+    if (nextStep) {
+      completeStep(task.id, nextStep.id);
+      return;
+    }
+
+    completeTask(task.id);
+  };
+
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="min-h-screen"
-    >
-      {/* Status Bar */}
-      <div className="bg-jade-600 dark:bg-charcoal-900 px-5 py-3 flex justify-between items-center">
-        <div className="text-sm font-medium text-white">9:41</div>
-        <div className="flex gap-1 text-white">
-          <Wifi size={14} />
-          <Battery size={14} />
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen cream-bg dark:bg-charcoal-900">
+      <div className="hero-gradient text-white dark:text-dark-200 rounded-b-[2rem] overflow-hidden">
+        <div className="px-5 pt-3 pb-8 relative">
+          <div className="flex items-center justify-between text-sm font-semibold opacity-95">
+            <div>9:41</div>
+            <div className="flex items-center gap-1">
+              <Wifi size={14} />
+              <Battery size={14} />
+            </div>
+          </div>
+
+          <LatticeFade dark={darkMode} className="top-5 h-[85%]" />
+
+          <div className="relative z-10 mt-5">
+            <p className="text-base font-semibold text-white/85 dark:text-dark-300">Mingtian</p>
+            <h1 className="text-4xl font-medium leading-none mt-2">Tasks</h1>
+          </div>
         </div>
       </div>
 
-      {/* Header */}
-      <div className="bg-jade-600 dark:bg-charcoal-900 px-5 pb-6 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-32 h-20 opacity-10 dark:opacity-20">
-          <svg viewBox="0 0 130 80" className="w-full h-full">
-            <defs>
-              <pattern id="lattice2" x="0" y="0" width="18" height="18" patternUnits="userSpaceOnUse">
-                <rect width="18" height="18" fill="none" stroke="white" strokeWidth="0.8"/>
-                <line x1="0" y1="9" x2="18" y2="9" stroke="white" strokeWidth="0.3"/>
-                <line x1="9" y1="0" x2="9" y2="18" stroke="white" strokeWidth="0.3"/>
-              </pattern>
-              <linearGradient id="fade2" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="currentColor" stopOpacity="1"/>
-                <stop offset="45%" stopColor="currentColor" stopOpacity="0"/>
-              </linearGradient>
-            </defs>
-            <rect width="130" height="80" fill="url(#lattice2)" opacity="0.6"/>
-            <rect width="130" height="80" fill="url(#fade2)"/>
-          </svg>
-        </div>
-        <div className="text-sm text-white/70 mb-1 relative z-10">明天 · Tasks</div>
-        <div className="text-2xl font-medium text-white mb-3 relative z-10">My tasks</div>
-      </div>
-
-      {/* Body */}
-      <div className="px-5 py-4 space-y-4">
-        {/* Prompt Box */}
-        <div className="bg-white dark:bg-charcoal-800 border border-jade-200 dark:border-dark-700/20 rounded-xl p-4 flex items-center gap-3">
-          <div className="flex-1 text-sm text-jade-500 dark:text-charcoal-400">What do you need to do?</div>
-          <button className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center text-white">
+      <div className="px-4 sm:px-5 pt-4 pb-4 space-y-5">
+        <form onSubmit={handleAddTask} className="card-soft p-5 space-y-3.5">
+          <div className="text-sm font-semibold uppercase tracking-[0.11em] text-jade-600 dark:text-dark-300">
+            Add task
+          </div>
+          <input
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="What do you need to do?"
+            className="w-full rounded-2xl border border-jade-200 dark:border-dark-700/45 bg-cream-50 dark:bg-charcoal-900 px-4 py-3 text-base"
+          />
+          <textarea
+            value={stepsText}
+            onChange={(event) => setStepsText(event.target.value)}
+            placeholder="Optional steps (one per line)"
+            rows={3}
+            className="w-full rounded-2xl border border-jade-200 dark:border-dark-700/45 bg-cream-50 dark:bg-charcoal-900 px-4 py-3 text-base"
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <input
+              value={xp}
+              onChange={(event) => setXp(event.target.value)}
+              placeholder="XP"
+              className="rounded-2xl border border-jade-200 dark:border-dark-700/45 bg-cream-50 dark:bg-charcoal-900 px-4 py-3 text-base"
+            />
+            <label className="rounded-2xl border border-jade-200 dark:border-dark-700/45 px-4 py-3 text-sm flex items-center gap-2 text-muted dark:text-charcoal-200">
+              <input
+                type="checkbox"
+                checked={isPlanned}
+                onChange={(event) => setIsPlanned(event.target.checked)}
+              />
+              Planned task
+            </label>
+          </div>
+          <button
+            type="submit"
+            className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-jade-700 text-white py-3 text-base font-semibold hover:bg-jade-800 transition-colors"
+          >
             <Plus size={16} />
+            Add task
           </button>
-        </div>
+        </form>
 
-        {/* Today's Tasks */}
-        <SectionHeader title="Today" />
-        <div className="space-y-3">
-          <TaskCard name="Morning review" steps="4/4 steps done" xp={20} isDone />
-          <TaskCard name="Reply to emails" steps="2 of 4 steps · in progress" xp={40} isInProgress />
-          <TaskCard name="Finish project report" steps="not started · 4 steps" xp={80} />
-        </div>
+        <section>
+          <SectionHeader title="Today" />
+          {todayTasks.length > 0 ? (
+            <div className="space-y-3">
+              {todayTasks.map((task) => (
+                <div key={task.id} className="space-y-2">
+                  <TaskCard
+                    name={task.name}
+                    steps={summarizeTask(task)}
+                    xp={task.xp}
+                    isDone={task.isDone}
+                    isInProgress={task.isInProgress}
+                    onToggleDone={() => completeTask(task.id)}
+                    onDelete={() => deleteTask(task.id)}
+                  />
+                  {!task.isDone && task.steps.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => completeNextStep(task)}
+                      className="text-xs font-semibold tracking-wide text-jade-600 dark:text-dark-300 hover:text-jade-700"
+                    >
+                      Complete next step
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="card-soft p-5 text-sm text-muted dark:text-charcoal-200">
+              No tasks scheduled for today.
+            </div>
+          )}
+        </section>
 
-        {/* Planned Ahead */}
-        <SectionHeader title="Planned ahead" />
-        <div className="space-y-3">
-          <TaskCard name="5K run prep" steps="Starts May 16 · 8 week plan" xp={0} />
-          <TaskCard name="Work presentation" steps="Due Jun 3 · step 1 of 5 today" xp={0} />
-        </div>
+        <section>
+          <SectionHeader title="Planned ahead" />
+          {plannedTasks.length > 0 ? (
+            <div className="space-y-3">
+              {plannedTasks.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  name={task.name}
+                  steps={summarizeTask(task)}
+                  xp={task.xp}
+                  isDone={task.isDone}
+                  isInProgress={task.isInProgress}
+                  onDelete={() => deleteTask(task.id)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="card-soft p-5 text-sm text-muted dark:text-charcoal-200">
+              No planned tasks yet.
+            </div>
+          )}
+        </section>
       </div>
     </motion.div>
   );

@@ -6,7 +6,7 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   return (
-    <div className="pb-20"> {/* padding bottom for nav */}
+    <div className="cream-bg min-h-screen pb-28">
       {children}
       <BottomNavigation />
     </div>
