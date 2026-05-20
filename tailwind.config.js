@@ -60,9 +60,9 @@ export default {
         sans: ['"SF Pro Display"', '"SF Pro Text"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
-        soft: '0 10px 40px rgba(20, 50, 45, 0.08)',
-        dock: '0 12px 36px rgba(20, 50, 45, 0.16)',
-        card: '0 6px 22px rgba(20, 50, 45, 0.07)',
+        soft: '0 2px 12px rgba(31,107,99,0.08), 0 1px 3px rgba(31,107,99,0.06)',
+        card: '0 2px 12px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.12)',
+        dock: '0 -2px 24px rgba(31,107,99,0.12), 0 4px 20px rgba(31,107,99,0.14)',
       },
     },
   },

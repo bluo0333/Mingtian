@@ -1,124 +1,172 @@
-import { FormEvent, useMemo, useState } from 'react';
-import Layout from '../components/layout/Layout';
+import { motion } from 'framer-motion';
+import { ArrowUp, Battery, Trash2, Wifi } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import BottomNavigation from '../components/layout/BottomNavigation';
+import LatticeFade from '../components/ui/LatticeFade';
 import SectionHeader from '../components/ui/SectionHeader';
-import { getResurfaceThoughts, useApp } from '../context/AppContext';
+import { getResurfaceThoughts, type Thought, useApp } from '../context/AppContext';
 
-const formatDate = (timestamp: number): string =>
-  new Date(timestamp).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-  });
+const relativeDate = (timestamp: number): string => {
+  const days = Math.floor((Date.now() - timestamp) / (1000 * 60 * 60 * 24));
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  return `${days} days ago`;
+};
+
+const canShowTaskAction = (thought: Thought): boolean => {
+  const oneDayMs = 24 * 60 * 60 * 1000;
+  const cutoff = Date.now() - oneDayMs;
+  const oldEnough = thought.createdAt <= cutoff;
+  const notRecentlyResurfaced = !thought.resurfacedAt || thought.resurfacedAt <= cutoff;
+  return oldEnough && notRecentlyResurfaced;
+};
 
 export default function Dump() {
   const {
-    state: { thoughts },
+    state: { thoughts, darkMode },
     addThought,
     deleteThought,
-    resurfaceThought,
     convertThoughtToTask,
   } = useApp();
+  const navigate = useNavigate();
 
   const [text, setText] = useState('');
-
   const resurfaced = useMemo(() => getResurfaceThoughts(thoughts), [thoughts]);
-  const activeThoughts = thoughts.filter((thought) => !thought.convertedToTask);
+  const activeThoughts = useMemo(
+    () =>
+      thoughts
+        .filter((thought) => !thought.convertedToTask)
+        .sort((a, b) => b.createdAt - a.createdAt),
+    [thoughts],
+  );
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleSaveThought = (): void => {
+    if (!text.trim()) {
+      return;
+    }
     addThought(text);
     setText('');
   };
 
+  const handleConvertToTask = (thoughtId: string): void => {
+    convertThoughtToTask(thoughtId);
+    navigate('/tasks');
+  };
+
   return (
-    <Layout>
-      <div className="px-4 sm:px-5 pt-7 pb-4 space-y-5">
-        <div>
-          <h1 className="text-4xl font-semibold jade-text dark:text-dark-100">Brain Dump</h1>
-          <p className="text-base text-muted dark:text-charcoal-200 mt-2">
-            Capture ideas quickly, then convert the useful ones into planned tasks.
-          </p>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen cream-bg dark:bg-charcoal-900">
+      <div className="hero-gradient text-white dark:text-dark-200 rounded-b-[2rem] overflow-hidden">
+        <div className="px-5 pt-3 pb-8 relative">
+          <div className="flex items-center justify-between text-sm font-semibold opacity-95">
+            <div>9:41</div>
+            <div className="flex items-center gap-1">
+              <Wifi size={14} />
+              <Battery size={14} />
+            </div>
+          </div>
+
+          <LatticeFade dark={darkMode} className="top-5 h-[85%]" />
+
+          <div className="relative z-10 mt-5">
+            <p className="text-base font-semibold text-white/85 dark:text-dark-300">明天 · Brain dump</p>
+            <h1 className="text-4xl font-medium leading-none mt-2">Thoughts</h1>
+          </div>
+        </div>
+      </div>
+
+      <div className="px-4 pt-4 pb-24 space-y-4">
+        <div className="card-soft p-3">
+          <div className="flex items-center gap-2 rounded-2xl border border-jade-200 dark:border-dark-500/40 bg-[#f7f4ee] dark:bg-[#20201a] px-3 py-2">
+            <input
+              value={text}
+              onChange={(event) => setText(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  handleSaveThought();
+                }
+              }}
+              placeholder="What's on your mind..."
+              className="w-full bg-transparent text-base jade-text dark:text-dark-100 placeholder:text-muted dark:placeholder:text-charcoal-300 focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={handleSaveThought}
+              className="h-9 w-9 shrink-0 rounded-full bg-[#c0392b] dark:bg-[#9b2335] text-white inline-flex items-center justify-center"
+              aria-label="Save thought"
+            >
+              <ArrowUp size={15} />
+            </button>
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="card-soft p-5 space-y-3.5">
-          <textarea
-            value={text}
-            onChange={(event) => setText(event.target.value)}
-            rows={4}
-            placeholder="What's on your mind?"
-            className="w-full rounded-2xl border border-jade-200 dark:border-dark-700/45 bg-cream-50 dark:bg-charcoal-900 px-4 py-3 text-base"
-          />
-          <button
-            type="submit"
-            className="rounded-2xl bg-jade-700 text-white px-5 py-2.5 text-sm font-semibold hover:bg-jade-800 transition-colors"
-          >
-            Save thought
-          </button>
-        </form>
-
-        <section className="space-y-3">
-          <SectionHeader title="Resurfaced" />
-          {resurfaced.length > 0 ? (
-            resurfaced.map((thought) => (
-              <div key={thought.id} className="card-soft p-5 space-y-3">
+        {resurfaced.length > 0 && (
+          <section className="space-y-3">
+            <SectionHeader title="Resurfaced today" />
+            {resurfaced.map((thought) => (
+              <div
+                key={thought.id}
+                className="card-soft p-4 space-y-3"
+                style={{ borderLeftWidth: '2.5px', borderLeftColor: darkMode ? '#9b2335' : '#c0392b' }}
+              >
                 <p className="text-base jade-text dark:text-dark-100">{thought.text}</p>
-                <div className="text-sm text-muted dark:text-charcoal-200">Added {formatDate(thought.createdAt)}</div>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => convertThoughtToTask(thought.id)}
-                    className="text-xs rounded-xl bg-jade-700 text-white px-3 py-1.5 font-semibold"
-                  >
-                    Convert to task
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => resurfaceThought(thought.id)}
-                    className="text-xs rounded-xl border border-jade-300 dark:border-dark-600 px-3 py-1.5 text-jade-700 dark:text-dark-300 font-semibold"
-                  >
-                    Snooze 1 day
-                  </button>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-muted dark:text-charcoal-200">{relativeDate(thought.createdAt)}</span>
+                  <span className="bg-[#f5dbd8] text-[#c0392b] dark:bg-[#9b2335]/15 dark:text-[#9b2335] rounded-full px-2 py-0.5 text-xs font-medium">
+                    Resurfaced
+                  </span>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => handleConvertToTask(thought.id)}
+                  className="text-sm font-semibold text-jade-700 dark:text-dark-300"
+                >
+                  Make into task?
+                </button>
               </div>
-            ))
-          ) : (
-            <div className="card-soft p-5 text-sm text-muted dark:text-charcoal-200">
-              No resurfaced thoughts right now.
-            </div>
-          )}
-        </section>
+            ))}
+          </section>
+        )}
 
         <section className="space-y-3">
-          <SectionHeader title="All thoughts" />
+          <SectionHeader title="Recent" />
           {activeThoughts.length > 0 ? (
             activeThoughts.map((thought) => (
-              <div key={thought.id} className="card-soft p-5">
+              <div
+                key={thought.id}
+                className="card-soft p-4 space-y-3"
+                style={{ borderLeftWidth: '2.5px', borderLeftColor: darkMode ? '#b8962a' : '#4a7c6f' }}
+              >
                 <p className="text-base jade-text dark:text-dark-100">{thought.text}</p>
-                <div className="mt-2 text-sm text-muted dark:text-charcoal-200">Added {formatDate(thought.createdAt)}</div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => convertThoughtToTask(thought.id)}
-                    className="text-xs rounded-xl bg-jade-700 text-white px-3 py-1.5 font-semibold"
-                  >
-                    Convert to task
-                  </button>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted dark:text-charcoal-200">{relativeDate(thought.createdAt)}</span>
                   <button
                     type="button"
                     onClick={() => deleteThought(thought.id)}
-                    className="text-xs rounded-xl border border-jade-300 dark:border-dark-600 px-3 py-1.5 text-jade-700 dark:text-dark-300 font-semibold"
+                    className="text-muted dark:text-charcoal-300 hover:text-jade-600 dark:hover:text-dark-300"
+                    aria-label="Delete thought"
                   >
-                    Delete
+                    <Trash2 size={14} />
                   </button>
                 </div>
+                {canShowTaskAction(thought) && (
+                  <button
+                    type="button"
+                    onClick={() => handleConvertToTask(thought.id)}
+                    className="text-sm font-semibold text-jade-700 dark:text-dark-300"
+                  >
+                    Make into task?
+                  </button>
+                )}
               </div>
             ))
           ) : (
-            <div className="card-soft p-5 text-sm text-muted dark:text-charcoal-200">
-              No thoughts captured yet.
-            </div>
+            <div className="card-soft p-5 text-sm text-muted dark:text-charcoal-200">No thoughts captured yet.</div>
           )}
         </section>
       </div>
-    </Layout>
+      <BottomNavigation />
+    </motion.div>
   );
 }

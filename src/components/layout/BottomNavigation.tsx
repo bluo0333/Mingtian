@@ -20,7 +20,7 @@ export default function BottomNavigation() {
           <Link
             key={item.path}
             to={item.path}
-            className={`flex min-w-[58px] flex-col items-center gap-1 rounded-2xl px-2 py-1.5 text-[11px] font-medium transition-colors ${
+            className={`flex min-w-[58px] flex-col items-center gap-1 rounded-xl px-2 py-1.5 text-[11px] font-medium transition-colors ${
               isActive
                 ? 'bg-jade-100/75 text-jade-700 dark:bg-charcoal-700/65 dark:text-dark-200'
                 : 'text-jade-400 dark:text-charcoal-300'

@@ -1,5 +1,8 @@
 import { motion } from 'framer-motion';
 import { Battery, Star, Wifi } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import BottomNavigation from '../../components/layout/BottomNavigation';
 import LatticeFade from '../../components/ui/LatticeFade';
 import FocusCard from '../../components/ui/FocusCard';
 import SectionHeader from '../../components/ui/SectionHeader';
@@ -19,20 +22,24 @@ const APP_MARK = '\u660e\u5929';
 export default function HomeScreen() {
   const {
     state: { tasks, xp, streak, user, darkMode },
+    completeStep,
     completeTask,
   } = useApp();
+  const [showSteps, setShowSteps] = useState(false);
 
   const todaysTasks = getTodaysTasks(tasks);
   const completedToday = todaysTasks.filter((task) => task.isDone).length;
   const totalToday = todaysTasks.length;
   const focusTask = todaysTasks.find((task) => !task.isDone);
+  const visibleTasks = todaysTasks.slice(0, 4);
 
   const level = getLevel(xp);
   const levelProgress = getLevelProgress(xp);
   const levelMax = getLevelMax();
 
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  useEffect(() => {
+    setShowSteps(false);
+  }, [focusTask?.id]);
 
   const summarizeSteps = (doneSteps: number, totalSteps: number, isDone: boolean): string => {
     if (totalSteps === 0) {
@@ -66,7 +73,7 @@ export default function HomeScreen() {
 
           <div className="relative z-10 mt-5">
             <p className="text-base font-semibold text-white/85 dark:text-dark-300">
-              {greeting}, {user.name || 'friend'}
+              Good morning, {user.name}
             </p>
             <h1 className="text-5xl font-medium leading-none mt-2">{APP_MARK}</h1>
             <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/45 bg-white/18 px-3.5 py-1.5 text-sm font-semibold backdrop-blur-sm dark:border-dark-300/45 dark:bg-dark-300/10 dark:text-dark-200">
@@ -77,9 +84,9 @@ export default function HomeScreen() {
         </div>
       </div>
 
-      <div className="px-4 sm:px-5 pt-4 pb-4 space-y-4">
+      <div className="px-4 sm:px-5 pt-4 pb-24 space-y-4">
         <div className="grid grid-cols-2 gap-3">
-          <StatCard value={`${streak} ${streak > 0 ? '??' : ''}`.trim()} label="Day streak" isAccent />
+          <StatCard value={`${streak}`} label="Day streak" isAccent isStreakCard />
           <StatCard value={`${completedToday}/${totalToday}`} label="Tasks today" />
         </div>
 
@@ -94,17 +101,51 @@ export default function HomeScreen() {
                 ? `Step ${focusTask.steps.filter((step) => step.done).length + 1} of ${focusTask.steps.length}`
                 : `Worth ${focusTask.xp} XP`
             }
-            onStart={() => completeTask(focusTask.id)}
+            onStart={() => setShowSteps((value) => !value)}
           />
         ) : (
           <FocusCard eyebrow="Focus now" task="No open tasks" sub="Add a task on the Tasks page" />
+        )}
+
+        {focusTask && showSteps && (
+          <div className="card-soft p-4 space-y-2.5">
+            {focusTask.steps.length > 0 ? (
+              focusTask.steps.map((step) => (
+                <button
+                  key={step.id}
+                  type="button"
+                  onClick={() => completeStep(focusTask.id, step.id)}
+                  className="w-full flex items-center gap-3 text-left"
+                >
+                  <span
+                    className={`h-5 w-5 rounded-full border-2 flex items-center justify-center ${
+                      step.done
+                        ? 'bg-success border-success'
+                        : 'border-jade-300 dark:border-dark-500'
+                    }`}
+                  />
+                  <span
+                    className={`text-sm ${
+                      step.done
+                        ? 'line-through text-muted dark:text-charcoal-300'
+                        : 'jade-text dark:text-dark-100'
+                    }`}
+                  >
+                    {step.text}
+                  </span>
+                </button>
+              ))
+            ) : (
+              <div className="text-sm text-muted dark:text-charcoal-200">No steps added yet for this task.</div>
+            )}
+          </div>
         )}
 
         <section className="space-y-3 pb-4">
           <SectionHeader title="Today's tasks" />
           {todaysTasks.length > 0 ? (
             <div className="space-y-3">
-              {todaysTasks.slice(0, 4).map((task) => {
+              {visibleTasks.map((task) => {
                 const doneSteps = task.steps.filter((step) => step.done).length;
                 return (
                   <TaskCard
@@ -118,6 +159,14 @@ export default function HomeScreen() {
                   />
                 );
               })}
+              {todaysTasks.length > 4 && (
+                <Link
+                  to="/tasks"
+                  className="inline-flex text-sm font-semibold text-jade-700 dark:text-dark-300 hover:opacity-90"
+                >
+                  See all →
+                </Link>
+              )}
             </div>
           ) : (
             <div className="card-soft p-5 text-sm text-muted dark:text-charcoal-200">
@@ -126,6 +175,7 @@ export default function HomeScreen() {
           )}
         </section>
       </div>
+      <BottomNavigation />
     </motion.div>
   );
 }

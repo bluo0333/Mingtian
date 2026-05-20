@@ -73,6 +73,14 @@
     color: var(--text-secondary);
   }
 
+  .text-success {
+    color: #5c9b73;
+  }
+
+  .bg-success {
+    background-color: #5c9b73;
+  }
+
   .jade-text {
     color: var(--text-primary);
   }

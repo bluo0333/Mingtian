@@ -83,7 +83,7 @@ export default function Onboarding() {
   return (
     <div className={`min-h-screen ${palette.outerBg} flex items-center justify-center p-3 sm:p-6`}>
       <div
-        className={`w-full max-w-[370px] min-h-[760px] rounded-[38px] border ${palette.cardBorder} ${palette.cardBg} overflow-hidden shadow-2xl`}
+        className={`w-full max-w-[370px] min-h-[680px] rounded-[38px] border ${palette.cardBorder} ${palette.cardBg} overflow-hidden shadow-2xl`}
       >
         <div className={`${palette.topBg} px-5 py-3 flex justify-between items-center`}>
           <div className={`text-sm font-semibold ${palette.primary}`}>9:41</div>
@@ -95,8 +95,8 @@ export default function Onboarding() {
 
         <div className="px-6 py-7">
           <div className="text-center">
-            <div className={`text-5xl leading-none mb-1 ${palette.heading}`}>{APP_MARK}</div>
-            <h1 className={`text-4xl font-semibold ${palette.heading}`}>Mingtian</h1>
+            <div className={`text-5xl leading-none mb-2 ${palette.heading}`}>{APP_MARK}</div>
+            <h1 className={`text-2xl font-semibold ${palette.heading}`}>Mingtian</h1>
             <p className={`mt-2 text-base ${palette.body}`}>your mindful productivity companion</p>
           </div>
 
@@ -127,7 +127,7 @@ export default function Onboarding() {
             {step === 0 && (
               <>
                 <div>
-                  <label className={`block text-3xl font-medium mb-3 ${palette.heading}`}>
+                  <label className={`block text-xl font-semibold mb-3 ${palette.heading}`}>
                     What should we call you?
                   </label>
                   <input
@@ -141,7 +141,7 @@ export default function Onboarding() {
                   </p>
                 </div>
                 <div>
-                  <label className={`block text-3xl font-medium mb-3 ${palette.heading}`}>
+                  <label className={`block text-xl font-semibold mb-3 ${palette.heading}`}>
                     When is your birthday?
                   </label>
                   <input
@@ -159,7 +159,7 @@ export default function Onboarding() {
 
             {step === 1 && (
               <div>
-                <div className={`text-3xl font-medium leading-tight mb-4 ${palette.heading}`}>
+                <div className={`text-xl font-semibold leading-tight mb-4 ${palette.heading}`}>
                   How much focus time do you have each day?
                 </div>
                 <div className="space-y-3">
@@ -178,7 +178,7 @@ export default function Onboarding() {
                             : `${palette.inputBorder} ${palette.surface}`
                         }`}
                       >
-                        <span className={`text-2xl font-medium ${palette.heading}`}>{option.label}</span>
+                        <span className={`text-base font-medium ${palette.heading}`}>{option.label}</span>
                         <span
                           className={`w-6 h-6 rounded-full border flex items-center justify-center ${
                             selected
@@ -201,7 +201,7 @@ export default function Onboarding() {
 
             {step === 2 && (
               <div>
-                <div className={`text-3xl font-medium leading-tight mb-4 ${palette.heading}`}>
+                <div className={`text-xl font-semibold leading-tight mb-4 ${palette.heading}`}>
                   Choose your look
                 </div>
                 <div className="space-y-3">
@@ -214,7 +214,7 @@ export default function Onboarding() {
                         : `${palette.inputBorder} ${palette.surface} ${palette.heading}`
                     }`}
                   >
-                    <span className="text-2xl font-medium">Light mode</span>
+                    <span className="text-base font-medium">Light mode</span>
                     {!useDarkMode && <Check size={16} />}
                   </button>
                   <button
@@ -226,7 +226,7 @@ export default function Onboarding() {
                         : `${palette.inputBorder} ${palette.surface} ${palette.heading}`
                     }`}
                   >
-                    <span className="text-2xl font-medium">Dark mode</span>
+                    <span className="text-base font-medium">Dark mode</span>
                     {useDarkMode && <Check size={16} />}
                   </button>
                 </div>
@@ -248,7 +248,7 @@ export default function Onboarding() {
               <button
                 type="button"
                 onClick={() => setStep((value) => Math.max(0, value - 1))}
-                className={`flex-1 rounded-2xl border ${palette.buttonBorder} ${palette.buttonBg} ${palette.buttonText} py-3 text-xl font-semibold`}
+                className={`flex-1 rounded-2xl border ${palette.buttonBorder} ${palette.buttonBg} ${palette.buttonText} py-3 text-base font-semibold`}
               >
                 Back
               </button>
@@ -257,7 +257,7 @@ export default function Onboarding() {
               type="button"
               onClick={continueFlow}
               disabled={!canContinue}
-              className={`rounded-2xl border ${palette.buttonBorder} ${palette.buttonBg} ${palette.buttonText} py-3 text-xl font-semibold disabled:opacity-40 ${
+              className={`rounded-2xl border ${palette.buttonBorder} ${palette.buttonBg} ${palette.buttonText} py-3 text-base font-semibold disabled:opacity-40 ${
                 step > 0 ? 'flex-1' : 'w-full'
               }`}
             >

@@ -34,7 +34,10 @@ export default function TaskCard({
       {onToggleDone ? (
         <button
           type="button"
-          onClick={onToggleDone}
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleDone();
+          }}
           className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${circleClasses}`}
           aria-label={isDone ? `Task ${name} is done` : `Mark ${name} as done`}
         >
@@ -63,7 +66,10 @@ export default function TaskCard({
       {onDelete && (
         <button
           type="button"
-          onClick={onDelete}
+          onClick={(event) => {
+            event.stopPropagation();
+            onDelete();
+          }}
           className="text-jade-400 hover:text-red-500 dark:text-charcoal-300 dark:hover:text-red-400 transition-colors"
           aria-label={`Delete ${name}`}
         >
