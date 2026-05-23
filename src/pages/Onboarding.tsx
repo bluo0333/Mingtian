@@ -119,7 +119,7 @@ export default function Onboarding() {
 
           <div className="text-center mb-6">
             <div className={`text-xs tracking-[0.12em] uppercase ${palette.body}`}>
-              Step {step + 1} of 4 - {steps[step]}
+              Step {step + 1} of 4 · {steps[step]}
             </div>
           </div>
 
@@ -261,7 +261,7 @@ export default function Onboarding() {
                 step > 0 ? 'flex-1' : 'w-full'
               }`}
             >
-              {step === 3 ? 'Continue' : 'Next'}
+              Continue
             </button>
           </div>
         </div>

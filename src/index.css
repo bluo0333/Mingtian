@@ -22,6 +22,15 @@
     min-height: 100%;
   }
 
+  html {
+    background-color: var(--cream-bg);
+    scrollbar-gutter: stable;
+  }
+
+  html.dark {
+    background-color: #121815;
+  }
+
   body {
     background-color: var(--cream-bg);
     color: var(--text-primary);
@@ -59,7 +68,7 @@
   }
 
   .floating-dock {
-    @apply fixed bottom-4 left-1/2 z-40 w-[calc(100%-1.25rem)] max-w-md -translate-x-1/2 rounded-3xl px-2 py-2 shadow-dock backdrop-blur-md;
+    @apply fixed bottom-4 left-1/2 z-40 w-[calc(100%-1.25rem)] max-w-md -translate-x-1/2 rounded-3xl px-2 py-2 shadow-dock backdrop-blur-md flex items-center justify-around;
     border: 1px solid rgba(211, 232, 228, 0.9);
     background-color: var(--cream-card);
   }

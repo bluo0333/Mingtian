@@ -22,6 +22,8 @@ export interface Task {
   isInProgress: boolean;
   isPlanned: boolean;
   deadline?: string;
+  deadlineTime?: string;
+  alarmTimestamp?: number;
   createdAt: number;
   completedAt?: number;
 }
@@ -50,6 +52,7 @@ export interface AppState {
   streak: number;
   lastActiveDate: string;
   darkMode: boolean;
+  apiKey?: string;
 }
 
 type Action =
@@ -60,6 +63,7 @@ type Action =
   | { type: 'ADD_TASK'; payload: Task }
   | { type: 'COMPLETE_TASK'; payload: { taskId: string } }
   | { type: 'COMPLETE_STEP'; payload: { taskId: string; stepId: string } }
+  | { type: 'ADD_STEP'; payload: { taskId: string; step: TaskStep } }
   | { type: 'DELETE_TASK'; payload: { taskId: string } }
   | { type: 'SET_TASK_PLANNED'; payload: { taskId: string; isPlanned: boolean } }
   | { type: 'ADD_THOUGHT'; payload: Thought }
@@ -67,7 +71,12 @@ type Action =
   | { type: 'RESURFACE_THOUGHT'; payload: { thoughtId: string } }
   | { type: 'CONVERT_THOUGHT_TO_TASK'; payload: { thoughtId: string; task: Task } }
   | { type: 'TOGGLE_DARK_MODE' }
-  | { type: 'UPDATE_STREAK' };
+  | { type: 'UPDATE_STREAK' }
+  | { type: 'UPDATE_PROFILE'; payload: { name: string; birthday?: string; dailyCapacity: number } }
+  | { type: 'SET_API_KEY'; payload: { apiKey: string } }
+  | { type: 'CLEAR_TASKS' }
+  | { type: 'RESET_PROGRESS' }
+  | { type: 'RESET_ALL' };
 
 const STORAGE_KEY = 'mingtian_app_state_v1';
 const XP_PER_LEVEL = 100;
@@ -188,6 +197,16 @@ function reducer(state: AppState, action: Action): AppState {
       };
     }
 
+    case 'ADD_STEP':
+      return {
+        ...state,
+        tasks: state.tasks.map((task) =>
+          task.id === action.payload.taskId
+            ? { ...task, steps: [...task.steps, action.payload.step] }
+            : task,
+        ),
+      };
+
     case 'DELETE_TASK':
       return {
         ...state,
@@ -266,6 +285,29 @@ function reducer(state: AppState, action: Action): AppState {
       };
     }
 
+    case 'UPDATE_PROFILE':
+      return {
+        ...state,
+        user: {
+          ...state.user,
+          name: action.payload.name,
+          birthday: action.payload.birthday,
+          dailyCapacity: action.payload.dailyCapacity,
+        },
+      };
+
+    case 'SET_API_KEY':
+      return { ...state, apiKey: action.payload.apiKey };
+
+    case 'CLEAR_TASKS':
+      return { ...state, tasks: [] };
+
+    case 'RESET_PROGRESS':
+      return { ...state, xp: 0, streak: 0, lastActiveDate: '' };
+
+    case 'RESET_ALL':
+      return { ...initialState };
+
     default:
       return state;
   }
@@ -316,9 +358,10 @@ interface AppContextValue {
     darkMode: boolean;
     birthday?: string;
   }) => void;
-  addTask: (payload: { name: string; stepsText?: string; xp?: number; isPlanned?: boolean; deadline?: string }) => void;
+  addTask: (payload: { name: string; stepsText?: string; xp?: number; isPlanned?: boolean; deadline?: string; deadlineTime?: string; alarmTimestamp?: number }) => void;
   completeTask: (taskId: string) => void;
   completeStep: (taskId: string, stepId: string) => void;
+  addStep: (taskId: string, stepText: string) => void;
   deleteTask: (taskId: string) => void;
   setTaskPlanned: (taskId: string, isPlanned: boolean) => void;
   addThought: (text: string) => void;
@@ -326,6 +369,11 @@ interface AppContextValue {
   resurfaceThought: (thoughtId: string) => void;
   convertThoughtToTask: (thoughtId: string, taskName?: string) => void;
   toggleDarkMode: () => void;
+  updateProfile: (payload: { name: string; birthday?: string; dailyCapacity: number }) => void;
+  setApiKey: (apiKey: string) => void;
+  clearTasks: () => void;
+  resetProgress: () => void;
+  resetAll: () => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -371,7 +419,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           isDone: false,
           isInProgress: false,
           isPlanned: Boolean(payload.isPlanned),
-          deadline: payload.deadline ? payload.deadline : undefined,
+          deadline: payload.deadline || undefined,
+          deadlineTime: payload.deadlineTime || undefined,
+          alarmTimestamp: payload.alarmTimestamp || undefined,
           createdAt: Date.now(),
         };
 
@@ -382,6 +432,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       },
       completeStep: (taskId, stepId) => {
         dispatch({ type: 'COMPLETE_STEP', payload: { taskId, stepId } });
+      },
+      addStep: (taskId, stepText) => {
+        const text = stepText.trim();
+        if (!text) return;
+        dispatch({
+          type: 'ADD_STEP',
+          payload: { taskId, step: { id: createId(), text, done: false } },
+        });
       },
       deleteTask: (taskId) => {
         dispatch({ type: 'DELETE_TASK', payload: { taskId } });
@@ -436,6 +494,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
       },
       toggleDarkMode: () => {
         dispatch({ type: 'TOGGLE_DARK_MODE' });
+      },
+      updateProfile: (payload) => {
+        dispatch({ type: 'UPDATE_PROFILE', payload });
+      },
+      setApiKey: (apiKey) => {
+        dispatch({ type: 'SET_API_KEY', payload: { apiKey } });
+      },
+      clearTasks: () => {
+        dispatch({ type: 'CLEAR_TASKS' });
+      },
+      resetProgress: () => {
+        dispatch({ type: 'RESET_PROGRESS' });
+      },
+      resetAll: () => {
+        dispatch({ type: 'RESET_ALL' });
       },
     }),
     [state],

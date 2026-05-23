@@ -1,5 +1,4 @@
-import { motion } from 'framer-motion';
-import { ArrowUp, Battery, Trash2, Wifi } from 'lucide-react';
+import { ArrowUp, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BottomNavigation from '../components/layout/BottomNavigation';
@@ -55,21 +54,13 @@ export default function Dump() {
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen cream-bg dark:bg-charcoal-900">
+    <div className="min-h-screen">
       <div className="hero-gradient text-white dark:text-dark-200 rounded-b-[2rem] overflow-hidden">
-        <div className="px-5 pt-3 pb-8 relative">
-          <div className="flex items-center justify-between text-sm font-semibold opacity-95">
-            <div>9:41</div>
-            <div className="flex items-center gap-1">
-              <Wifi size={14} />
-              <Battery size={14} />
-            </div>
-          </div>
+        <div className="px-5 pt-6 pb-8 relative">
+          <LatticeFade dark={darkMode} />
 
-          <LatticeFade dark={darkMode} className="top-5 h-[85%]" />
-
-          <div className="relative z-10 mt-5">
-            <p className="text-base font-semibold text-white/85 dark:text-dark-300">明天 · Brain dump</p>
+          <div className="relative z-10">
+            <p className="text-base font-semibold text-white/85 dark:text-dark-300">明天</p>
             <h1 className="text-4xl font-medium leading-none mt-2">Thoughts</h1>
           </div>
         </div>
@@ -167,6 +158,6 @@ export default function Dump() {
         </section>
       </div>
       <BottomNavigation />
-    </motion.div>
+    </div>
   );
 }

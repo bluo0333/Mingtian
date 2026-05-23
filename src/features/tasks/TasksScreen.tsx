@@ -1,5 +1,4 @@
-import { motion } from 'framer-motion';
-import { ArrowUp, Battery, Check, Wifi } from 'lucide-react';
+import { ArrowUp, Check, Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import BottomNavigation from '../../components/layout/BottomNavigation';
 import LatticeFade from '../../components/ui/LatticeFade';
@@ -7,8 +6,7 @@ import SectionHeader from '../../components/ui/SectionHeader';
 import TaskCard from '../../components/ui/TaskCard';
 import { getPlannedTasks, getTodaysTasks, type Task, useApp } from '../../context/AppContext';
 
-const API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY as string | undefined;
-const API_ENABLED = Boolean(API_KEY);
+const ENV_API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY as string | undefined;
 
 type GenerateResult = {
   steps: string;
@@ -18,12 +16,12 @@ type GenerateResult = {
 const parseXp = (value: unknown, fallback: number): number =>
   typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 
-const generateSteps = async (taskName: string): Promise<GenerateResult> => {
+const generateSteps = async (taskName: string, key: string): Promise<GenerateResult> => {
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': API_KEY ?? '',
+      'x-api-key': key,
       'anthropic-version': '2023-06-01',
       'anthropic-dangerous-direct-browser-access': 'true',
     },
@@ -34,7 +32,7 @@ const generateSteps = async (taskName: string): Promise<GenerateResult> => {
         {
           role: 'user',
           content:
-            'You are a productivity assistant for someone with ADHD. Break this task into 3-5 concrete, small, actionable steps. Reply ONLY with a JSON object with two fields: "steps" (array of short step strings, max 8 words each) and "xp" (integer 20-100 based on complexity). No markdown, no explanation.\n\nTask: ' +
+            'You are a productivity assistant for someone with ADHD. Break this task into 3-5 concrete, small, actionable steps. Reply ONLY with a JSON object with two fields: "steps" (array of short step strings, max 8 words each) and "xp" (integer, estimate based on total time and difficulty: 10-20 for under 15 min, 25-45 for 15-45 min, 50-80 for 1-2 hours, 85-130 for 2-4 hours, 140-200 for 4+ hours or high cognitive load). No markdown, no explanation.\n\nTask: ' +
             taskName,
         },
       ],
@@ -56,15 +54,17 @@ const generateSteps = async (taskName: string): Promise<GenerateResult> => {
 
 export default function TasksScreen() {
   const {
-    state: { tasks, darkMode },
+    state: { tasks, darkMode, apiKey: storedApiKey },
     addTask,
     completeStep,
+    addStep,
     completeTask,
     deleteTask,
   } = useApp();
 
   const [prompt, setPrompt] = useState('');
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [newStepInputs, setNewStepInputs] = useState<Record<string, string>>({});
   const [isGenerating, setIsGenerating] = useState(false);
 
   const todayTasks = useMemo(() => getTodaysTasks(tasks), [tasks]);
@@ -74,18 +74,26 @@ export default function TasksScreen() {
     setExpanded((prev) => ({ ...prev, [taskId]: !prev[taskId] }));
   };
 
+  const handleAddStep = (taskId: string): void => {
+    const text = newStepInputs[taskId]?.trim();
+    if (!text) return;
+    addStep(taskId, text);
+    setNewStepInputs((prev) => ({ ...prev, [taskId]: '' }));
+  };
+
   const handleCreateTask = async (): Promise<void> => {
     const name = prompt.trim();
     if (!name || isGenerating) {
       return;
     }
 
+    const activeKey = storedApiKey || ENV_API_KEY;
     setIsGenerating(true);
     try {
-      if (!API_ENABLED) {
+      if (!activeKey) {
         addTask({ name, stepsText: '', xp: 30 });
       } else {
-        const generated = await generateSteps(name);
+        const generated = await generateSteps(name, activeKey);
         addTask({ name, stepsText: generated.steps, xp: generated.xp });
       }
       setPrompt('');
@@ -102,12 +110,11 @@ export default function TasksScreen() {
       return null;
     }
 
-    if (task.steps.length === 0) {
-      return <div className="ml-8 text-sm text-muted dark:text-charcoal-200">No steps added yet.</div>;
-    }
-
     return (
       <div className="ml-8 space-y-2">
+        {task.steps.length === 0 && (
+          <div className="text-sm text-muted dark:text-charcoal-200">No steps yet.</div>
+        )}
         {task.steps.map((step) => (
           <button
             key={step.id}
@@ -116,7 +123,7 @@ export default function TasksScreen() {
             className="w-full flex items-center gap-2.5 text-left"
           >
             <span
-              className={`h-[18px] w-[18px] rounded-full border-2 flex items-center justify-center ${
+              className={`h-[18px] w-[18px] shrink-0 rounded-full border-2 flex items-center justify-center ${
                 step.done ? 'border-success bg-success' : 'border-jade-300 dark:border-dark-500'
               }`}
             >
@@ -133,6 +140,30 @@ export default function TasksScreen() {
             </span>
           </button>
         ))}
+        {!task.isDone && (
+          <div className="flex items-center gap-2 pt-1">
+            <input
+              value={newStepInputs[task.id] ?? ''}
+              onChange={(e) => setNewStepInputs((prev) => ({ ...prev, [task.id]: e.target.value }))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleAddStep(task.id);
+                }
+              }}
+              placeholder="Add a step..."
+              className="flex-1 bg-transparent text-sm jade-text dark:text-dark-100 placeholder:text-muted dark:placeholder:text-charcoal-300 focus:outline-none border-b border-jade-200 dark:border-dark-500/40 pb-0.5"
+            />
+            <button
+              type="button"
+              onClick={() => handleAddStep(task.id)}
+              className="h-6 w-6 shrink-0 rounded-full bg-jade-600 dark:bg-dark-500 text-white inline-flex items-center justify-center"
+              aria-label="Add step"
+            >
+              <Plus size={12} />
+            </button>
+          </div>
+        )}
       </div>
     );
   };
@@ -170,21 +201,13 @@ export default function TasksScreen() {
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen cream-bg dark:bg-charcoal-900">
+    <div className="min-h-screen">
       <div className="hero-gradient text-white dark:text-dark-200 rounded-b-[2rem] overflow-hidden">
-        <div className="px-5 pt-3 pb-8 relative">
-          <div className="flex items-center justify-between text-sm font-semibold opacity-95">
-            <div>9:41</div>
-            <div className="flex items-center gap-1">
-              <Wifi size={14} />
-              <Battery size={14} />
-            </div>
-          </div>
+        <div className="px-5 pt-6 pb-8 relative">
+          <LatticeFade dark={darkMode} />
 
-          <LatticeFade dark={darkMode} className="top-5 h-[85%]" />
-
-          <div className="relative z-10 mt-5">
-            <p className="text-base font-semibold text-white/85 dark:text-dark-300">Mingtian</p>
+          <div className="relative z-10">
+            <p className="text-base font-semibold text-white/85 dark:text-dark-300">明天</p>
             <h1 className="text-4xl font-medium leading-none mt-2">Tasks</h1>
           </div>
         </div>
@@ -242,6 +265,6 @@ export default function TasksScreen() {
         </section>
       </div>
       <BottomNavigation />
-    </motion.div>
+    </div>
   );
 }

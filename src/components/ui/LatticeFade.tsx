@@ -1,11 +1,10 @@
 interface LatticeFadeProps {
   dark?: boolean;
-  className?: string;
 }
 
-export default function LatticeFade({ dark = false, className = '' }: LatticeFadeProps) {
+export default function LatticeFade({ dark = false }: LatticeFadeProps) {
   return (
-    <div className={`pointer-events-none absolute inset-y-0 right-0 w-[min(56%,340px)] ${className}`}>
+    <div className="pointer-events-none absolute top-0 bottom-0 right-0 w-[min(56%,340px)]">
       <div
         className="h-full w-full"
         style={{

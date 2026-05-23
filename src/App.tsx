@@ -1,10 +1,12 @@
-import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
+import { BrowserRouter as Router, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import type { ReactElement } from 'react';
 import Home from './pages/Home';
 import Tasks from './pages/Tasks';
 import Dump from './pages/Dump';
 import Onboarding from './pages/Onboarding';
 import Plan from './pages/Plan';
+import Settings from './pages/Settings';
 import Stats from './pages/Stats';
 import { useApp } from './context/AppContext';
 
@@ -20,11 +22,20 @@ function ProtectedRoute({ children }: { children: ReactElement }) {
   return children;
 }
 
-function App() {
+function AnimatedRoutes() {
+  const location = useLocation();
+
   return (
-    <Router>
-      <div className="min-h-screen cream-bg text-ink-900 dark:bg-charcoal-900 dark:text-dark-100">
-        <Routes>
+    <AnimatePresence mode="sync" initial={false}>
+      <motion.div
+        key={location.pathname}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.12, ease: 'easeInOut' }}
+        className="fixed inset-0 overflow-y-auto cream-bg dark:bg-charcoal-900 text-ink-900 dark:text-dark-100"
+      >
+        <Routes location={location}>
           <Route path="/onboarding" element={<Onboarding />} />
           <Route
             path="/"
@@ -66,9 +77,25 @@ function App() {
               </ProtectedRoute>
             )}
           />
+          <Route
+            path="/settings"
+            element={(
+              <ProtectedRoute>
+                <Settings />
+              </ProtectedRoute>
+            )}
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <AnimatedRoutes />
     </Router>
   );
 }
