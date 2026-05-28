@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { Battery, Check, Wifi } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
@@ -16,6 +16,129 @@ const capacityOptions: CapacityOption[] = [
   { label: '2 - 4 hours', value: 4 },
   { label: '4+ hours', value: 6 },
 ];
+
+const formatBirthday = (value: string) => {
+  let digits = value.replace(/\D/g, '');
+  
+  // Validate first digit of day (can only be 0-3)
+  if (digits.length >= 1) {
+    const firstDayDigit = parseInt(digits[0]);
+    if (firstDayDigit > 3) {
+      digits = '3' + digits.slice(1);
+    }
+  }
+  
+  // Validate first digit of month (can only be 0-1)
+  if (digits.length >= 3) {
+    const firstMonthDigit = parseInt(digits[2]);
+    if (firstMonthDigit > 1) {
+      digits = digits.slice(0, 2) + '1' + digits.slice(3);
+    }
+  }
+  
+  if (digits.length === 0) return 'DD/MM/YYYY';
+  
+  // Extract components
+  let day = digits.slice(0, 2);
+  let month = digits.slice(2, 4);
+  let year = digits.slice(4, 8);
+  
+  // Validate and cap day at 31
+  if (day.length === 2 && parseInt(day) > 31) {
+    day = '31';
+  }
+  
+  // Validate and cap month at 12
+  if (month.length === 2 && parseInt(month) > 12) {
+    month = '12';
+  }
+  
+  // Build with placeholders for missing parts
+  const dayPart = day + 'D'.repeat(2 - day.length);
+  const monthPart = month + 'M'.repeat(2 - month.length);
+  const yearPart = year + 'Y'.repeat(4 - year.length);
+  
+  return `${dayPart}/${monthPart}/${yearPart}`;
+};
+
+const BirthdayInput = ({ value, onChange, palette, isDark }: { value: string; onChange: (val: string) => void; palette: any; isDark: boolean }) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [focusIndex, setFocusIndex] = useState(0);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const digits = value.replace(/\D/g, '');
+    
+    if (e.key === 'Backspace') {
+      e.preventDefault();
+      if (digits.length > 0) {
+        const newDigits = digits.slice(0, -1);
+        onChange(formatBirthday(newDigits));
+        setFocusIndex(Math.max(0, focusIndex - 1));
+      }
+    } else if (e.key >= '0' && e.key <= '9') {
+      e.preventDefault();
+      const newDigits = digits + e.key;
+      onChange(formatBirthday(newDigits));
+      setFocusIndex(focusIndex + 1);
+    }
+  };
+
+  const handleFocus = () => {
+    const digits = value.replace(/\D/g, '');
+    setFocusIndex(digits.length);
+  };
+
+  // Calculate which character to highlight
+  const digits = value.replace(/\D/g, '');
+  let digitCounter = 0;
+  let highlightCharIndex = -1;
+
+  for (let i = 0; i < value.length; i++) {
+    if (value[i] !== '/' && value[i] !== 'D' && value[i] !== 'M' && value[i] !== 'Y') {
+      if (digitCounter === digits.length) {
+        highlightCharIndex = i;
+        break;
+      }
+      digitCounter++;
+    } else if (value[i] === 'D' || value[i] === 'M' || value[i] === 'Y') {
+      if (digitCounter === digits.length) {
+        highlightCharIndex = i;
+        break;
+      }
+    }
+  }
+
+  return (
+    <div className="relative">
+      <input
+        ref={inputRef}
+        value={value}
+        onKeyDown={handleKeyDown}
+        onFocus={handleFocus}
+        onClick={handleFocus}
+        placeholder="DD / MM / YYYY"
+        className={`w-full rounded-2xl border ${palette.inputBorder} ${palette.inputBg} px-4 py-3 text-lg ${palette.heading} placeholder:opacity-70 caret-transparent`}
+      />
+      {/* Display formatted value with highlight */}
+      <div className="absolute top-0 left-0 w-full h-full px-4 py-3 text-lg pointer-events-none flex items-center">
+        <span className={palette.heading}>
+          {value.split('').map((char, idx) => (
+            <span
+              key={idx}
+              className={`${
+                idx === highlightCharIndex
+                  ? `${isDark ? 'bg-[#b8962a] animate-pulse' : 'bg-jade-400 animate-pulse'}`
+                  : ''
+              }`}
+            >
+              {char}
+            </span>
+          ))}
+        </span>
+      </div>
+    </div>
+  );
+};
 
 export default function Onboarding() {
   const {
@@ -144,14 +267,14 @@ export default function Onboarding() {
                   <label className={`block text-xl font-semibold mb-3 ${palette.heading}`}>
                     When is your birthday?
                   </label>
-                  <input
+                  <BirthdayInput
                     value={birthday}
-                    onChange={(event) => setBirthday(event.target.value)}
-                    placeholder="DD / MM / YYYY"
-                    className={`w-full rounded-2xl border ${palette.inputBorder} ${palette.inputBg} px-4 py-3 text-lg ${palette.heading} placeholder:opacity-70`}
+                    onChange={setBirthday}
+                    palette={palette}
+                    isDark={isDark}
                   />
                   <p className={`mt-2 text-sm ${palette.body}`}>
-                    Used to celebrate with you - nothing else.
+                    Used to celebrate with you and nothing else.
                   </p>
                 </div>
               </>

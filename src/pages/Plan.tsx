@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowUp, Bell, Check } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import BottomNavigation from '../components/layout/BottomNavigation';
 import LatticeFade from '../components/ui/LatticeFade';
 import SectionHeader from '../components/ui/SectionHeader';
@@ -80,6 +80,143 @@ const generatePlan = async (goal: string, deadline: string, dailyCapacity: numbe
   };
 };
 
+const formatDate = (value: string) => {
+  let digits = value.replace(/\D/g, '');
+
+  // Validate first digit of day (can only be 0-3)
+  if (digits.length >= 1) {
+    const firstDayDigit = parseInt(digits[0]);
+    if (firstDayDigit > 3) {
+      digits = '3' + digits.slice(1);
+    }
+  }
+
+  // Validate first digit of month (can only be 0-1)
+  if (digits.length >= 3) {
+    const firstMonthDigit = parseInt(digits[2]);
+    if (firstMonthDigit > 1) {
+      digits = digits.slice(0, 2) + '1' + digits.slice(3);
+    }
+  }
+
+  if (digits.length === 0) return 'DD/MM/YYYY';
+
+  // Extract components
+  let day = digits.slice(0, 2);
+  let month = digits.slice(2, 4);
+  let year = digits.slice(4, 8);
+
+  // Validate and cap day at 31
+  if (day.length === 2 && parseInt(day) > 31) {
+    day = '31';
+  }
+
+  // Validate and cap month at 12
+  if (month.length === 2 && parseInt(month) > 12) {
+    month = '12';
+  }
+
+  // Build with placeholders for missing parts
+  const dayPart = day + 'D'.repeat(2 - day.length);
+  const monthPart = month + 'M'.repeat(2 - month.length);
+  const yearPart = year + 'Y'.repeat(4 - year.length);
+
+  return `${dayPart}/${monthPart}/${yearPart}`;
+};
+
+const isCompleteDate = (value: string): boolean => value.replace(/\D/g, '').length === 8;
+
+const convertDDMMYYYYtoYYYYMMDD = (ddmmyyyy: string): string => {
+  if (!isCompleteDate(ddmmyyyy)) return '';
+  const parts = ddmmyyyy.split('/');
+  if (parts.length !== 3) return '';
+  return `${parts[2]}-${parts[1]}-${parts[0]}`;
+};
+
+const DateInput = ({ value, onChange, disabled }: { value: string; onChange: (val: string) => void; disabled: boolean }) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [focusIndex, setFocusIndex] = useState(0);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (disabled) return;
+
+    const digits = value.replace(/\D/g, '');
+
+    if (e.key === 'Backspace') {
+      e.preventDefault();
+      if (digits.length > 0) {
+        const newDigits = digits.slice(0, -1);
+        onChange(formatDate(newDigits));
+        setFocusIndex(Math.max(0, focusIndex - 1));
+      }
+    } else if (e.key >= '0' && e.key <= '9') {
+      e.preventDefault();
+      const newDigits = digits + e.key;
+      onChange(formatDate(newDigits));
+      setFocusIndex(focusIndex + 1);
+    }
+  };
+
+  const handleFocus = () => {
+    const digits = value.replace(/\D/g, '');
+    setFocusIndex(digits.length);
+  };
+
+  // Calculate which character to highlight
+  const digits = value.replace(/\D/g, '');
+  let digitCounter = 0;
+  let highlightCharIndex = -1;
+
+  for (let i = 0; i < value.length; i++) {
+    if (value[i] !== '/' && value[i] !== 'D' && value[i] !== 'M' && value[i] !== 'Y') {
+      if (digitCounter === digits.length) {
+        highlightCharIndex = i;
+        break;
+      }
+      digitCounter++;
+    } else if (value[i] === 'D' || value[i] === 'M' || value[i] === 'Y') {
+      if (digitCounter === digits.length) {
+        highlightCharIndex = i;
+        break;
+      }
+    }
+  }
+
+  return (
+    <div className="relative flex-1">
+      <input
+        ref={inputRef}
+        value={value}
+        onKeyDown={handleKeyDown}
+        onFocus={handleFocus}
+        onClick={handleFocus}
+        disabled={disabled}
+        placeholder="DD / MM / YYYY"
+        className="w-full bg-transparent text-sm jade-text dark:text-dark-100 placeholder:text-muted dark:placeholder:text-charcoal-300 focus:outline-none disabled:opacity-70 caret-transparent"
+      />
+      {/* Display formatted value with highlight */}
+      {!disabled && (
+        <div className="absolute top-0 left-0 w-full h-full pointer-events-none flex items-center">
+          <span className="jade-text dark:text-dark-100 text-sm">
+            {value.split('').map((char, idx) => (
+              <span
+                key={idx}
+                className={`${
+                  idx === highlightCharIndex
+                    ? 'bg-jade-300 dark:bg-[#b8962a] animate-pulse'
+                    : ''
+                }`}
+              >
+                {char}
+              </span>
+            ))}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function Plan() {
   const {
     state: { tasks, darkMode, user, apiKey: storedApiKey },
@@ -107,9 +244,12 @@ export default function Plan() {
     const name = goal.trim();
     if (!name || isGenerating) return;
 
+    const hasCompleteDeadline = isCompleteDate(deadline);
+    const deadlineFormatted = hasCompleteDeadline ? convertDDMMYYYYtoYYYYMMDD(deadline) : '';
+
     const alarmTimestamp = (() => {
-      if (!deadline || alarmOffsetMin === 0) return undefined;
-      const deadlineMs = new Date(`${deadline}T${time || '23:59'}`).getTime();
+      if (!deadlineFormatted || alarmOffsetMin === 0) return undefined;
+      const deadlineMs = new Date(`${deadlineFormatted}T${time || '23:59'}`).getTime();
       const ts = deadlineMs - alarmOffsetMin * 60 * 1000;
       return ts > Date.now() ? ts : undefined;
     })();
@@ -120,14 +260,14 @@ export default function Plan() {
       const base = {
         name,
         isPlanned: true as const,
-        deadline: deadline || undefined,
+        deadline: hasCompleteDeadline ? deadline : undefined,
         deadlineTime: time || undefined,
         alarmTimestamp,
       };
-      if (!deadline || !activeKey) {
+      if (!hasCompleteDeadline || !activeKey) {
         addTask({ ...base, stepsText: '', xp: 30 });
       } else {
-        const generated = await generatePlan(name, deadline, user.dailyCapacity, activeKey);
+        const generated = await generatePlan(name, deadlineFormatted, user.dailyCapacity, activeKey);
         addTask({ ...base, stepsText: generated.steps, xp: generated.xp });
       }
       if (alarmTimestamp) void scheduleNotification(name, alarmTimestamp);
@@ -136,7 +276,7 @@ export default function Plan() {
       setTime('');
       setAlarmOffsetMin(0);
     } catch {
-      addTask({ name, deadline: deadline || undefined, deadlineTime: time || undefined, isPlanned: true, stepsText: '', xp: 30 });
+      addTask({ name, deadline: isCompleteDate(deadline) ? deadline : undefined, deadlineTime: time || undefined, isPlanned: true, stepsText: '', xp: 30 });
       setGoal('');
       setDeadline('');
       setTime('');
@@ -221,12 +361,16 @@ export default function Plan() {
           {/* Date + Time row */}
           <div className="flex items-center gap-2">
             <div className="flex-1 flex items-center gap-2 rounded-2xl border border-jade-200 dark:border-dark-500/40 bg-[#f7f4ee] dark:bg-[#20201a] px-3 py-2">
-              <input
-                type="date"
+              <DateInput
                 value={deadline}
-                onChange={(event) => { setDeadline(event.target.value); if (!event.target.value) { setTime(''); setAlarmOffsetMin(0); } }}
+                onChange={(val) => {
+                  setDeadline(val);
+                  if (!isCompleteDate(val)) {
+                    setTime('');
+                    setAlarmOffsetMin(0);
+                  }
+                }}
                 disabled={isGenerating}
-                className="w-full bg-transparent text-sm jade-text dark:text-dark-100 focus:outline-none disabled:opacity-70"
               />
             </div>
             <div className="flex items-center gap-2 rounded-2xl border border-jade-200 dark:border-dark-500/40 bg-[#f7f4ee] dark:bg-[#20201a] px-3 py-2">
@@ -234,7 +378,7 @@ export default function Plan() {
                 type="time"
                 value={time}
                 onChange={(event) => setTime(event.target.value)}
-                disabled={isGenerating || !deadline}
+                disabled={isGenerating || !isCompleteDate(deadline)}
                 className="w-24 bg-transparent text-sm jade-text dark:text-dark-100 focus:outline-none disabled:opacity-40"
               />
             </div>
@@ -259,7 +403,7 @@ export default function Plan() {
 
           {/* Alarm offset — only when deadline is set */}
           <AnimatePresence initial={false}>
-            {deadline && (
+            {deadline.replace(/\D/g, '').length > 0 && (
               <motion.div
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}

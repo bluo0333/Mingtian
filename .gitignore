@@ -1,0 +1,25 @@
+# macOS AppleDouble files created on external/non-native filesystems
+._*
+**/._*
+
+# Dependencies and package-manager cache
+node_modules/
+
+# Build output and local Vite cache
+dist/
+.vite/
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS/editor noise
+.DS_Store
