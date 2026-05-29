@@ -1,21 +1,40 @@
 import { motion } from 'framer-motion';
+import { Star } from 'lucide-react';
 
 const SEGMENTS = 10;
 
 interface XPCardProps {
-  label: string;
+  level: number;
   current: number;
   total: number;
+  totalXp: number;
 }
 
-export default function XPCard({ label, current, total }: XPCardProps) {
+export default function XPCard({ level, current, total, totalXp }: XPCardProps) {
   const filled = total > 0 ? (current / total) * SEGMENTS : 0;
 
   return (
     <div className="card-soft p-4 sm:p-5">
-      <div className="flex justify-between items-center mb-3.5">
-        <div className="text-sm text-muted dark:text-charcoal-200">{label}</div>
-        <div className="text-sm font-semibold text-jade-700 dark:text-dark-200">{current} / {total} XP</div>
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-2xl bg-jade-700 text-white shadow-[0_4px_0_rgba(22,101,52,0.35)] dark:bg-[#b8962a] dark:text-charcoal-900">
+            <span className="text-[10px] font-black uppercase leading-none tracking-wide">Level</span>
+            <span className="text-2xl font-black leading-none">{level}</span>
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 text-base font-bold jade-text dark:text-dark-100">
+              <Star size={15} fill="currentColor" />
+              Keep building
+            </div>
+            <div className="mt-0.5 text-xs font-semibold text-muted dark:text-charcoal-200">
+              {totalXp} XP earned
+            </div>
+          </div>
+        </div>
+        <div className="shrink-0 text-right">
+          <div className="text-sm font-bold text-jade-700 dark:text-dark-200">{current}/{total}</div>
+          <div className="text-[11px] font-semibold text-muted dark:text-charcoal-300">to Level {level + 1}</div>
+        </div>
       </div>
       <div className="flex gap-[3px]">
         {Array.from({ length: SEGMENTS }, (_, i) => {

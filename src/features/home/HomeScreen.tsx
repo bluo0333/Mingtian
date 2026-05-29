@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, Settings, Star } from 'lucide-react';
+import { Check, Settings } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import BottomNavigation from '../../components/layout/BottomNavigation';
@@ -127,9 +127,11 @@ export default function HomeScreen() {
                 Good morning, {user.name}
               </p>
               <h1 className="text-5xl font-medium leading-none mt-2">{APP_MARK}</h1>
-              <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/45 bg-white/18 px-3.5 py-1.5 text-sm font-semibold backdrop-blur-sm dark:border-dark-300/45 dark:bg-dark-300/10 dark:text-dark-200">
-                <Star size={13} />
-                Level {level} · {xp} XP
+              <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/45 bg-white/18 px-2 py-1.5 pr-3.5 text-sm font-semibold backdrop-blur-sm dark:border-dark-300/45 dark:bg-dark-300/10 dark:text-dark-200">
+                <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-white text-lg font-black leading-none text-jade-800 dark:bg-dark-200 dark:text-charcoal-900">
+                  {level}
+                </span>
+                <span>Level · {xp} XP</span>
               </div>
             </div>
             <Link
@@ -149,7 +151,7 @@ export default function HomeScreen() {
           <StatCard value={`${completedToday}/${totalToday}`} label="Tasks today" />
         </div>
 
-        <XPCard label={`Level ${level + 1} progress`} current={levelProgress} total={levelMax} />
+        <XPCard level={level} current={levelProgress} total={levelMax} totalXp={xp} />
 
         {focusTask ? (
           <FocusCard
