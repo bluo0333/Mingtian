@@ -1,14 +1,16 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { BrowserRouter as Router, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import type { ReactElement } from 'react';
+import { useEffect, useRef } from 'react';
 import Home from './pages/Home';
 import Tasks from './pages/Tasks';
 import Dump from './pages/Dump';
+import LevelUp from './pages/LevelUp';
 import Onboarding from './pages/Onboarding';
 import Plan from './pages/Plan';
 import Settings from './pages/Settings';
 import Stats from './pages/Stats';
-import { useApp } from './context/AppContext';
+import { getLevel, useApp } from './context/AppContext';
 
 function ProtectedRoute({ children }: { children: ReactElement }) {
   const {
@@ -85,6 +87,14 @@ function AnimatedRoutes() {
               </ProtectedRoute>
             )}
           />
+          <Route
+            path="/level-up"
+            element={(
+              <ProtectedRoute>
+                <LevelUp />
+              </ProtectedRoute>
+            )}
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </motion.div>
@@ -92,9 +102,47 @@ function AnimatedRoutes() {
   );
 }
 
+function LevelUpWatcher() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const {
+    state: { xp, user },
+  } = useApp();
+  const level = getLevel(xp);
+  const previousLevel = useRef(level);
+
+  useEffect(() => {
+    previousLevel.current = level;
+  }, [user.onboarded]);
+
+  useEffect(() => {
+    if (!user.onboarded) {
+      previousLevel.current = level;
+      return;
+    }
+
+    const highestCelebrated = Number(window.localStorage.getItem('mingtian_highest_celebrated_level') ?? '1');
+    if (
+      level > previousLevel.current &&
+      level > highestCelebrated &&
+      location.pathname !== '/level-up'
+    ) {
+      window.localStorage.setItem('mingtian_highest_celebrated_level', String(level));
+      navigate('/level-up', {
+        state: { level, from: location.pathname },
+      });
+    }
+
+    previousLevel.current = level;
+  }, [level, location.pathname, navigate, user.onboarded]);
+
+  return null;
+}
+
 function App() {
   return (
     <Router>
+      <LevelUpWatcher />
       <AnimatedRoutes />
     </Router>
   );
