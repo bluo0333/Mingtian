@@ -4,7 +4,8 @@ import BottomNavigation from '../../components/layout/BottomNavigation';
 import LatticeFade from '../../components/ui/LatticeFade';
 import SectionHeader from '../../components/ui/SectionHeader';
 import TaskCard from '../../components/ui/TaskCard';
-import { getPlannedTasks, getTodaysTasks, type Task, useApp } from '../../context/AppContext';
+import TaskScheduleEditor from '../../components/ui/TaskScheduleEditor';
+import { getTodaysTasks, TASK_NAME_MAX_LENGTH, type Task, useApp } from '../../context/AppContext';
 
 const ENV_API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY as string | undefined;
 
@@ -58,6 +59,7 @@ export default function TasksScreen() {
     addTask,
     completeStep,
     addStep,
+    updateTaskSchedule,
     completeTask,
     deleteTask,
   } = useApp();
@@ -68,7 +70,7 @@ export default function TasksScreen() {
   const [isGenerating, setIsGenerating] = useState(false);
 
   const todayTasks = useMemo(() => getTodaysTasks(tasks), [tasks]);
-  const plannedTasks = useMemo(() => getPlannedTasks(tasks), [tasks]);
+  const isPromptAtLimit = prompt.length >= TASK_NAME_MAX_LENGTH;
 
   const toggleExpanded = (taskId: string): void => {
     setExpanded((prev) => ({ ...prev, [taskId]: !prev[taskId] }));
@@ -185,7 +187,10 @@ export default function TasksScreen() {
             }}>
               <TaskCard
                 name={task.name}
-                steps={`${task.steps.filter((step) => step.done).length}/${task.steps.length} steps`}
+                steps={[
+                  `${task.steps.filter((step) => step.done).length}/${task.steps.length} steps`,
+                  task.deadline && `Due ${task.deadline}${task.deadlineTime ? ` at ${task.deadlineTime}` : ''}`,
+                ].filter(Boolean).join(' · ')}
                 xp={task.xp}
                 isDone={task.isDone}
                 isInProgress={task.isInProgress}
@@ -194,6 +199,13 @@ export default function TasksScreen() {
               />
             </div>
             {renderExpandedSteps(task)}
+            {expanded[task.id] && (
+              <TaskScheduleEditor
+                deadline={task.deadline}
+                deadlineTime={task.deadlineTime}
+                onChange={(deadline, deadlineTime) => updateTaskSchedule(task.id, deadline, deadlineTime)}
+              />
+            )}
           </div>
         ))}
       </div>
@@ -208,14 +220,20 @@ export default function TasksScreen() {
 
           <div className="relative z-10">
             <p className="text-base font-semibold text-white/85 dark:text-dark-300">明天</p>
-            <h1 className="text-4xl font-medium leading-none mt-2">Tasks</h1>
+            <h1 className="text-4xl font-medium leading-none mt-2">Today</h1>
           </div>
         </div>
       </div>
 
       <div className="px-4 sm:px-5 pt-4 pb-24 space-y-5">
         <div className="card-soft p-3">
-          <div className="flex items-center gap-2 rounded-2xl border border-jade-200 dark:border-dark-500/40 bg-[#f7f4ee] dark:bg-[#20201a] px-3 py-2">
+          <div
+            className={`flex items-center gap-2 rounded-2xl border bg-[#f7f4ee] dark:bg-[#20201a] px-3 py-2 transition-colors ${
+              isPromptAtLimit
+                ? 'border-[#c0392b] dark:border-[#d35d6e]'
+                : 'border-jade-200 dark:border-dark-500/40'
+            }`}
+          >
             <input
               value={prompt}
               onChange={(event) => setPrompt(event.target.value)}
@@ -227,8 +245,14 @@ export default function TasksScreen() {
               }}
               disabled={isGenerating}
               placeholder="What do you need to do?"
+              maxLength={TASK_NAME_MAX_LENGTH}
               className="w-full bg-transparent text-base jade-text dark:text-dark-100 placeholder:text-muted dark:placeholder:text-charcoal-300 focus:outline-none disabled:opacity-70"
             />
+            {isPromptAtLimit && (
+              <span className="shrink-0 text-[11px] font-medium tabular-nums text-[#c0392b] dark:text-[#d35d6e]">
+                {TASK_NAME_MAX_LENGTH}/{TASK_NAME_MAX_LENGTH}
+              </span>
+            )}
             {isGenerating && (
               <div className="flex items-center gap-1 px-1.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-jade-500 dark:bg-dark-300 animate-pulse" />
@@ -251,17 +275,6 @@ export default function TasksScreen() {
         <section>
           <SectionHeader title="Today" />
           {renderTaskList(todayTasks)}
-        </section>
-
-        <section>
-          <SectionHeader title="Planned ahead" />
-          {plannedTasks.length > 0 ? (
-            renderTaskList(plannedTasks)
-          ) : (
-            <div className="card-soft p-5 text-sm text-muted dark:text-charcoal-200">
-              No planned tasks yet.
-            </div>
-          )}
         </section>
       </div>
       <BottomNavigation />

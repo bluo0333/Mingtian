@@ -1,11 +1,12 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowUp, Bell, Check } from 'lucide-react';
-import { useMemo, useState, useRef } from 'react';
+import { ArrowUp, Bell, Check, Plus } from 'lucide-react';
+import { useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent, type RefObject } from 'react';
 import BottomNavigation from '../components/layout/BottomNavigation';
 import LatticeFade from '../components/ui/LatticeFade';
 import SectionHeader from '../components/ui/SectionHeader';
 import TaskCard from '../components/ui/TaskCard';
-import { getPlannedTasks, type Task, useApp } from '../context/AppContext';
+import TaskScheduleEditor from '../components/ui/TaskScheduleEditor';
+import { getPlannedTasks, TASK_NAME_MAX_LENGTH, type Task, useApp } from '../context/AppContext';
 
 const ENV_API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY as string | undefined;
 
@@ -80,7 +81,34 @@ const generatePlan = async (goal: string, deadline: string, dailyCapacity: numbe
   };
 };
 
-const formatDate = (value: string) => {
+const pad2 = (value: number): string => value.toString().padStart(2, '0');
+
+const startOfLocalDay = (date: Date): Date =>
+  new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+const normalizeCompleteDate = (day: string, month: string, year: string): string => {
+  const today = startOfLocalDay(new Date());
+  let dayNum = Number(day);
+  let monthNum = Number(month);
+  const yearNum = Number(year);
+
+  if (!Number.isFinite(yearNum) || yearNum < 1) {
+    return formatDateForDisplay(today);
+  }
+
+  dayNum = Math.min(Math.max(dayNum, 1), 31);
+  monthNum = Math.min(Math.max(monthNum, 1), 12);
+  dayNum = Math.min(dayNum, new Date(yearNum, monthNum, 0).getDate());
+
+  const candidate = startOfLocalDay(new Date(yearNum, monthNum - 1, dayNum));
+  if (candidate < today) {
+    return formatDateForDisplay(today);
+  }
+
+  return `${pad2(dayNum)}/${pad2(monthNum)}/${yearNum.toString().padStart(4, '0')}`;
+};
+
+const formatDate = (value: string): string => {
   let digits = value.replace(/\D/g, '');
 
   // Validate first digit of day (can only be 0-3)
@@ -99,7 +127,7 @@ const formatDate = (value: string) => {
     }
   }
 
-  if (digits.length === 0) return 'DD/MM/YYYY';
+  if (digits.length === 0) return '';
 
   // Extract components
   let day = digits.slice(0, 2);
@@ -107,24 +135,134 @@ const formatDate = (value: string) => {
   let year = digits.slice(4, 8);
 
   // Validate and cap day at 31
-  if (day.length === 2 && parseInt(day) > 31) {
-    day = '31';
+  if (day.length === 2) {
+    const dayNum = parseInt(day);
+    if (dayNum === 0) {
+      day = '01';
+    } else if (dayNum > 31) {
+      day = '31';
+    }
   }
 
   // Validate and cap month at 12
-  if (month.length === 2 && parseInt(month) > 12) {
-    month = '12';
+  if (month.length === 2) {
+    const monthNum = parseInt(month);
+    if (monthNum === 0) {
+      month = '01';
+    } else if (monthNum > 12) {
+      month = '12';
+    }
   }
 
-  // Build with placeholders for missing parts
-  const dayPart = day + 'D'.repeat(2 - day.length);
-  const monthPart = month + 'M'.repeat(2 - month.length);
-  const yearPart = year + 'Y'.repeat(4 - year.length);
+  if (digits.length <= 2) return day;
+  if (digits.length <= 4) return `${day}/${month}`;
+  if (digits.length === 8) return normalizeCompleteDate(day, month, year);
 
-  return `${dayPart}/${monthPart}/${yearPart}`;
+  return `${day}/${month}/${year}`;
+};
+
+const displayDateTemplate = (value: string): string => {
+  const [day = '', month = '', year = ''] = value.split('/');
+  return `${day.padEnd(2, 'D')}/${month.padEnd(2, 'M')}/${year.padEnd(4, 'Y')}`;
+};
+
+const dateTemplateHighlightIndex = (value: string): number => {
+  const digitCount = value.replace(/\D/g, '').length;
+  if (digitCount >= 8) return displayDateTemplate(value).length - 1;
+  if (digitCount < 2) return digitCount;
+  if (digitCount < 4) return digitCount + 1;
+  return digitCount + 2;
 };
 
 const isCompleteDate = (value: string): boolean => value.replace(/\D/g, '').length === 8;
+
+const getTimePeriod = (value: string): 'AM' | 'PM' | '' => {
+  const normalized = value.toUpperCase();
+  if (normalized.includes('P')) return 'PM';
+  if (normalized.includes('A')) return 'AM';
+  return '';
+};
+
+type TimeParts = {
+  hour: string;
+  minute: string;
+};
+
+const parseTimeDigits = (digits: string): TimeParts => {
+  const clipped = digits.slice(0, 4);
+
+  if (clipped.length === 0) {
+    return { hour: '', minute: '' };
+  }
+
+  let hour = clipped.slice(0, 2);
+  let minute = clipped.slice(2, 4);
+
+  if (hour.length === 1 && Number(hour) > 1) {
+    hour = '1';
+  }
+
+  if (hour.length === 2) {
+    const hourNum = Number(hour);
+    if (hourNum === 0) {
+      hour = '01';
+    } else if (hourNum > 12) {
+      hour = '12';
+    }
+  }
+
+  if (minute.length >= 1 && Number(minute[0]) > 5) {
+    minute = `5${minute.slice(1)}`;
+  }
+
+  if (minute.length === 2 && Number(minute) > 59) {
+    minute = '59';
+  }
+
+  return { hour, minute };
+};
+
+const formatTime = (value: string): string => {
+  const period = getTimePeriod(value);
+  const digits = value.replace(/\D/g, '');
+
+  if (digits.length === 0) return period;
+
+  const { hour, minute } = parseTimeDigits(digits);
+  const time = digits.length <= 2 ? hour : `${hour}:${minute}`;
+  return period ? `${time} ${period}` : time;
+};
+
+const displayTimeTemplate = (value: string): string => {
+  const digits = value.replace(/\D/g, '');
+  const { hour, minute } = parseTimeDigits(digits);
+  const period = getTimePeriod(value);
+  return `${hour.padEnd(2, '-')}:${minute.padEnd(2, '-')} ${period || '--'}`;
+};
+
+const timeTemplateHighlightIndex = (value: string): number => {
+  const digitCount = value.replace(/\D/g, '').length;
+  if (digitCount >= 4) return getTimePeriod(value) ? -1 : 6;
+  if (digitCount < 2) return digitCount;
+  return digitCount + 1;
+};
+
+const isCompleteTime = (value: string): boolean =>
+  value.replace(/\D/g, '').length === 4 && Boolean(getTimePeriod(value));
+
+const toTwentyFourHourTime = (value: string): string => {
+  if (!isCompleteTime(value)) return '';
+
+  const { hour, minute } = parseTimeDigits(value.replace(/\D/g, ''));
+  const hourNum = Number(hour);
+  const minuteNum = Number(minute);
+  const period = getTimePeriod(value);
+  const hour24 = period === 'AM'
+    ? hourNum === 12 ? 0 : hourNum
+    : hourNum === 12 ? 12 : hourNum + 12;
+
+  return `${pad2(hour24)}:${pad2(minuteNum)}`;
+};
 
 const convertDDMMYYYYtoYYYYMMDD = (ddmmyyyy: string): string => {
   if (!isCompleteDate(ddmmyyyy)) return '';
@@ -133,86 +271,204 @@ const convertDDMMYYYYtoYYYYMMDD = (ddmmyyyy: string): string => {
   return `${parts[2]}-${parts[1]}-${parts[0]}`;
 };
 
-const DateInput = ({ value, onChange, disabled }: { value: string; onChange: (val: string) => void; disabled: boolean }) => {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [focusIndex, setFocusIndex] = useState(0);
+const formatDateForDisplay = (date: Date): string =>
+  `${pad2(date.getDate())}/${pad2(date.getMonth() + 1)}/${date.getFullYear()}`;
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (disabled) return;
+const formatDateForApi = (date: Date): string =>
+  `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
 
-    const digits = value.replace(/\D/g, '');
+const resolveDeadlineDate = (deadline: string, time: string): { display: string; api: string } => {
+  if (isCompleteDate(deadline)) {
+    return {
+      display: deadline,
+      api: convertDDMMYYYYtoYYYYMMDD(deadline),
+    };
+  }
 
-    if (e.key === 'Backspace') {
-      e.preventDefault();
-      if (digits.length > 0) {
-        const newDigits = digits.slice(0, -1);
-        onChange(formatDate(newDigits));
-        setFocusIndex(Math.max(0, focusIndex - 1));
-      }
-    } else if (e.key >= '0' && e.key <= '9') {
-      e.preventDefault();
-      const newDigits = digits + e.key;
-      onChange(formatDate(newDigits));
-      setFocusIndex(focusIndex + 1);
-    }
-  };
-
-  const handleFocus = () => {
-    const digits = value.replace(/\D/g, '');
-    setFocusIndex(digits.length);
-  };
-
-  // Calculate which character to highlight
-  const digits = value.replace(/\D/g, '');
-  let digitCounter = 0;
-  let highlightCharIndex = -1;
-
-  for (let i = 0; i < value.length; i++) {
-    if (value[i] !== '/' && value[i] !== 'D' && value[i] !== 'M' && value[i] !== 'Y') {
-      if (digitCounter === digits.length) {
-        highlightCharIndex = i;
-        break;
-      }
-      digitCounter++;
-    } else if (value[i] === 'D' || value[i] === 'M' || value[i] === 'Y') {
-      if (digitCounter === digits.length) {
-        highlightCharIndex = i;
-        break;
-      }
+  const targetDate = new Date();
+  const [hour, minute] = time.split(':').map(Number);
+  if (Number.isFinite(hour) && Number.isFinite(minute)) {
+    const nowMinutes = targetDate.getHours() * 60 + targetDate.getMinutes();
+    const dueMinutes = hour * 60 + minute;
+    if (nowMinutes > dueMinutes) {
+      targetDate.setDate(targetDate.getDate() + 1);
     }
   }
 
+  return {
+    display: formatDateForDisplay(targetDate),
+    api: formatDateForApi(targetDate),
+  };
+};
+
+const parseDisplayDate = (value: string): Date | null => {
+  if (!isCompleteDate(value)) return null;
+  const [day, month, year] = value.split('/').map(Number);
+  const parsed = new Date(year, month - 1, day);
+  if (
+    parsed.getFullYear() !== year ||
+    parsed.getMonth() !== month - 1 ||
+    parsed.getDate() !== day
+  ) {
+    return null;
+  }
+  return parsed;
+};
+
+const isPastDueTimeForSelectedDate = (deadline: string, time: string): boolean => {
+  const selectedDate = parseDisplayDate(deadline);
+  const time24 = toTwentyFourHourTime(time);
+  if (!selectedDate || !time24) return false;
+  const [hour, minute] = time24.split(':').map(Number);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return false;
+  const dueAt = new Date(
+    selectedDate.getFullYear(),
+    selectedDate.getMonth(),
+    selectedDate.getDate(),
+    hour,
+    minute,
+  );
+  return startOfLocalDay(selectedDate).getTime() === startOfLocalDay(new Date()).getTime() && dueAt < new Date();
+};
+
+const DateInput = ({
+  value,
+  onChange,
+  onComplete,
+  disabled,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  onComplete: () => void;
+  disabled: boolean;
+}) => {
+  const [isFocused, setIsFocused] = useState(false);
+
+  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const nextValue = formatDate(event.target.value);
+    const wasComplete = isCompleteDate(value);
+    onChange(nextValue);
+
+    if (!wasComplete && isCompleteDate(nextValue)) {
+      requestAnimationFrame(onComplete);
+    }
+  };
+
+  const displayValue = displayDateTemplate(value);
+  const highlightIndex = isFocused && !disabled ? dateTemplateHighlightIndex(value) : -1;
+
   return (
     <div className="relative flex-1">
-      <input
-        ref={inputRef}
-        value={value}
-        onKeyDown={handleKeyDown}
-        onFocus={handleFocus}
-        onClick={handleFocus}
-        disabled={disabled}
-        placeholder="DD / MM / YYYY"
-        className="w-full bg-transparent text-sm jade-text dark:text-dark-100 placeholder:text-muted dark:placeholder:text-charcoal-300 focus:outline-none disabled:opacity-70 caret-transparent"
-      />
-      {/* Display formatted value with highlight */}
-      {!disabled && (
-        <div className="absolute top-0 left-0 w-full h-full pointer-events-none flex items-center">
-          <span className="jade-text dark:text-dark-100 text-sm">
-            {value.split('').map((char, idx) => (
-              <span
-                key={idx}
-                className={`${
-                  idx === highlightCharIndex
-                    ? 'bg-jade-300 dark:bg-[#b8962a] animate-pulse'
-                    : ''
-                }`}
-              >
-                {char}
-              </span>
-            ))}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 flex items-center font-mono text-sm jade-text dark:text-dark-100"
+      >
+        {displayValue.split('').map((char, index) => (
+          <span
+            key={`${char}-${index}`}
+            className={`inline-block w-[1ch] text-center ${
+              index === highlightIndex ? 'bg-jade-300 dark:bg-[#b8962a] animate-pulse' : ''
+            }`}
+          >
+            {char}
           </span>
-        </div>
-      )}
+        ))}
+      </div>
+      <input
+        value={value}
+        onChange={handleChange}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
+        disabled={disabled}
+        aria-label="Deadline date"
+        inputMode="numeric"
+        maxLength={10}
+        className="relative z-10 w-full bg-transparent font-mono text-sm text-transparent caret-transparent focus:outline-none disabled:opacity-70"
+      />
+    </div>
+  );
+};
+
+const TimeInput = ({
+  value,
+  onChange,
+  disabled,
+  inputRef,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  disabled: boolean;
+  inputRef: RefObject<HTMLInputElement>;
+}) => {
+  const [isFocused, setIsFocused] = useState(false);
+
+  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
+    onChange(formatTime(event.target.value));
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (disabled) return;
+
+    if (event.key === 'Backspace') {
+      event.preventDefault();
+      if (getTimePeriod(value)) {
+        onChange(formatTime(value.replace(/\s?[AP]M$/, '')));
+        return;
+      }
+
+      onChange(formatTime(value.replace(/\D/g, '').slice(0, -1)));
+      return;
+    }
+
+    if (/^\d$/.test(event.key)) {
+      event.preventDefault();
+      const period = getTimePeriod(value);
+      const digits = value.replace(/\D/g, '');
+      if (parseTimeDigits(digits).minute.length < 2) {
+        onChange(formatTime(`${digits}${event.key}${period}`));
+      }
+      return;
+    }
+
+    if (/^[ap]$/i.test(event.key)) {
+      event.preventDefault();
+      onChange(formatTime(`${value}${event.key}`));
+    }
+  };
+
+  const displayValue = displayTimeTemplate(value);
+  const highlightIndex = isFocused && !disabled ? timeTemplateHighlightIndex(value) : -1;
+
+  return (
+    <div className="relative w-28">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 flex items-center font-mono text-sm jade-text dark:text-dark-100"
+      >
+        {displayValue.split('').map((char, index) => (
+          <span
+            key={`${char}-${index}`}
+            className={`inline-block w-[1ch] text-center ${
+              index === highlightIndex ? 'bg-jade-300 dark:bg-[#b8962a] animate-pulse' : ''
+            }`}
+          >
+            {char}
+          </span>
+        ))}
+      </div>
+      <input
+        value={value}
+        ref={inputRef}
+        onChange={handleChange}
+        onKeyDown={handleKeyDown}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
+        disabled={disabled}
+        aria-label="Deadline time"
+        autoCapitalize="characters"
+        maxLength={8}
+        className="relative z-10 w-full bg-transparent font-mono text-sm text-transparent caret-transparent focus:outline-none disabled:opacity-40"
+      />
     </div>
   );
 };
@@ -223,6 +479,8 @@ export default function Plan() {
     addTask,
     setTaskPlanned,
     completeStep,
+    addStep,
+    updateTaskSchedule,
     completeTask,
     deleteTask,
   } = useApp();
@@ -233,23 +491,36 @@ export default function Plan() {
   const [alarmOffsetMin, setAlarmOffsetMin] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [newStepInputs, setNewStepInputs] = useState<Record<string, string>>({});
+  const timeInputRef = useRef<HTMLInputElement>(null);
 
   const plannedTasks = useMemo(() => getPlannedTasks(tasks), [tasks]);
+  const hasPastDueTime = useMemo(() => isPastDueTimeForSelectedDate(deadline, time), [deadline, time]);
+  const isGoalAtLimit = goal.length >= TASK_NAME_MAX_LENGTH;
 
   const toggleExpanded = (taskId: string): void => {
     setExpanded((prev) => ({ ...prev, [taskId]: !prev[taskId] }));
   };
 
+  const handleAddStep = (taskId: string): void => {
+    const text = newStepInputs[taskId]?.trim();
+    if (!text) return;
+    addStep(taskId, text);
+    setNewStepInputs((prev) => ({ ...prev, [taskId]: '' }));
+  };
+
   const handleAddPlannedTask = async (): Promise<void> => {
     const name = goal.trim();
-    if (!name || isGenerating) return;
+    if (!name || isGenerating || hasPastDueTime) return;
 
     const hasCompleteDeadline = isCompleteDate(deadline);
-    const deadlineFormatted = hasCompleteDeadline ? convertDDMMYYYYtoYYYYMMDD(deadline) : '';
+    const completeTime = isCompleteTime(time) ? time : '';
+    const completeTime24 = toTwentyFourHourTime(completeTime);
+    const deadlineFormatted = resolveDeadlineDate(deadline, completeTime24);
 
     const alarmTimestamp = (() => {
-      if (!deadlineFormatted || alarmOffsetMin === 0) return undefined;
-      const deadlineMs = new Date(`${deadlineFormatted}T${time || '23:59'}`).getTime();
+      if (alarmOffsetMin === 0) return undefined;
+      const deadlineMs = new Date(`${deadlineFormatted.api}T${completeTime24 || '23:59'}`).getTime();
       const ts = deadlineMs - alarmOffsetMin * 60 * 1000;
       return ts > Date.now() ? ts : undefined;
     })();
@@ -260,14 +531,14 @@ export default function Plan() {
       const base = {
         name,
         isPlanned: true as const,
-        deadline: hasCompleteDeadline ? deadline : undefined,
-        deadlineTime: time || undefined,
+        deadline: deadlineFormatted.display,
+        deadlineTime: completeTime || undefined,
         alarmTimestamp,
       };
       if (!hasCompleteDeadline || !activeKey) {
         addTask({ ...base, stepsText: '', xp: 30 });
       } else {
-        const generated = await generatePlan(name, deadlineFormatted, user.dailyCapacity, activeKey);
+        const generated = await generatePlan(name, deadlineFormatted.api, user.dailyCapacity, activeKey);
         addTask({ ...base, stepsText: generated.steps, xp: generated.xp });
       }
       if (alarmTimestamp) void scheduleNotification(name, alarmTimestamp);
@@ -276,7 +547,10 @@ export default function Plan() {
       setTime('');
       setAlarmOffsetMin(0);
     } catch {
-      addTask({ name, deadline: isCompleteDate(deadline) ? deadline : undefined, deadlineTime: time || undefined, isPlanned: true, stepsText: '', xp: 30 });
+      const completeTime = isCompleteTime(time) ? time : '';
+      const completeTime24 = toTwentyFourHourTime(completeTime);
+      const deadlineFormatted = resolveDeadlineDate(deadline, completeTime24);
+      addTask({ name, deadline: deadlineFormatted.display, deadlineTime: completeTime || undefined, isPlanned: true, stepsText: '', xp: 30 });
       setGoal('');
       setDeadline('');
       setTime('');
@@ -291,12 +565,11 @@ export default function Plan() {
       return null;
     }
 
-    if (task.steps.length === 0) {
-      return <div className="ml-8 text-sm text-muted dark:text-charcoal-200">No steps added yet.</div>;
-    }
-
     return (
       <div className="ml-8 space-y-2">
+        {task.steps.length === 0 && (
+          <div className="text-sm text-muted dark:text-charcoal-200">No steps added yet.</div>
+        )}
         {task.steps.map((step) => (
           <button
             key={step.id}
@@ -322,6 +595,30 @@ export default function Plan() {
             </span>
           </button>
         ))}
+        {!task.isDone && (
+          <div className="flex items-center gap-2 pt-1">
+            <input
+              value={newStepInputs[task.id] ?? ''}
+              onChange={(event) => setNewStepInputs((prev) => ({ ...prev, [task.id]: event.target.value }))}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  handleAddStep(task.id);
+                }
+              }}
+              placeholder="Add a step..."
+              className="flex-1 bg-transparent text-sm jade-text dark:text-dark-100 placeholder:text-muted dark:placeholder:text-charcoal-300 focus:outline-none border-b border-jade-200 dark:border-dark-500/40 pb-0.5"
+            />
+            <button
+              type="button"
+              onClick={() => handleAddStep(task.id)}
+              className="h-6 w-6 shrink-0 rounded-full bg-jade-600 dark:bg-dark-500 text-white inline-flex items-center justify-center"
+              aria-label="Add step"
+            >
+              <Plus size={12} />
+            </button>
+          </div>
+        )}
       </div>
     );
   };
@@ -342,7 +639,13 @@ export default function Plan() {
       <div className="px-4 sm:px-5 pt-4 pb-24 space-y-5">
         <div className="card-soft p-3 space-y-2.5">
           {/* Goal name */}
-          <div className="flex items-center gap-2 rounded-2xl border border-jade-200 dark:border-dark-500/40 bg-[#f7f4ee] dark:bg-[#20201a] px-3 py-2">
+          <div
+            className={`flex items-center gap-2 rounded-2xl border bg-[#f7f4ee] dark:bg-[#20201a] px-3 py-2 transition-colors ${
+              isGoalAtLimit
+                ? 'border-[#c0392b] dark:border-[#d35d6e]'
+                : 'border-jade-200 dark:border-dark-500/40'
+            }`}
+          >
             <input
               value={goal}
               onChange={(event) => setGoal(event.target.value)}
@@ -353,9 +656,15 @@ export default function Plan() {
                 }
               }}
               placeholder="Goal or task name"
+              maxLength={TASK_NAME_MAX_LENGTH}
               disabled={isGenerating}
               className="w-full bg-transparent text-base jade-text dark:text-dark-100 placeholder:text-muted dark:placeholder:text-charcoal-300 focus:outline-none disabled:opacity-70"
             />
+            {isGoalAtLimit && (
+              <span className="shrink-0 text-[11px] font-medium tabular-nums text-[#c0392b] dark:text-[#d35d6e]">
+                {TASK_NAME_MAX_LENGTH}/{TASK_NAME_MAX_LENGTH}
+              </span>
+            )}
           </div>
 
           {/* Date + Time row */}
@@ -363,23 +672,23 @@ export default function Plan() {
             <div className="flex-1 flex items-center gap-2 rounded-2xl border border-jade-200 dark:border-dark-500/40 bg-[#f7f4ee] dark:bg-[#20201a] px-3 py-2">
               <DateInput
                 value={deadline}
-                onChange={(val) => {
-                  setDeadline(val);
-                  if (!isCompleteDate(val)) {
-                    setTime('');
-                    setAlarmOffsetMin(0);
-                  }
-                }}
+                onChange={setDeadline}
+                onComplete={() => timeInputRef.current?.focus()}
                 disabled={isGenerating}
               />
             </div>
-            <div className="flex items-center gap-2 rounded-2xl border border-jade-200 dark:border-dark-500/40 bg-[#f7f4ee] dark:bg-[#20201a] px-3 py-2">
-              <input
-                type="time"
+            <div
+              className={`flex items-center gap-2 rounded-2xl border bg-[#f7f4ee] dark:bg-[#20201a] px-3 py-2 transition-colors ${
+                hasPastDueTime
+                  ? 'border-[#c0392b] ring-2 ring-[#c0392b]/20 dark:border-[#d35d6e] dark:ring-[#d35d6e]/20'
+                  : 'border-jade-200 dark:border-dark-500/40'
+              }`}
+            >
+              <TimeInput
                 value={time}
-                onChange={(event) => setTime(event.target.value)}
-                disabled={isGenerating || !isCompleteDate(deadline)}
-                className="w-24 bg-transparent text-sm jade-text dark:text-dark-100 focus:outline-none disabled:opacity-40"
+                onChange={setTime}
+                disabled={isGenerating}
+                inputRef={timeInputRef}
               />
             </div>
             {isGenerating ? (
@@ -392,8 +701,12 @@ export default function Plan() {
               <button
                 type="button"
                 onClick={() => void handleAddPlannedTask()}
-                disabled={isGenerating}
-                className="h-9 w-9 shrink-0 rounded-full bg-[#c0392b] dark:bg-[#9b2335] text-white inline-flex items-center justify-center disabled:opacity-65"
+                disabled={isGenerating || hasPastDueTime}
+                className={`h-9 w-9 shrink-0 rounded-full text-white inline-flex items-center justify-center transition-colors disabled:opacity-65 ${
+                  hasPastDueTime
+                    ? 'bg-[#c0392b]/55 dark:bg-[#9b2335]/55 ring-2 ring-[#c0392b]/25'
+                    : 'bg-[#c0392b] dark:bg-[#9b2335]'
+                }`}
                 aria-label="Create planned task"
               >
                 <ArrowUp size={15} />
@@ -403,7 +716,7 @@ export default function Plan() {
 
           {/* Alarm offset — only when deadline is set */}
           <AnimatePresence initial={false}>
-            {deadline.replace(/\D/g, '').length > 0 && (
+            {(deadline.replace(/\D/g, '').length > 0 || time) && (
               <motion.div
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
@@ -467,6 +780,13 @@ export default function Plan() {
                     />
                   </div>
                   {renderExpandedSteps(task)}
+                  {expanded[task.id] && (
+                    <TaskScheduleEditor
+                      deadline={task.deadline}
+                      deadlineTime={task.deadlineTime}
+                      onChange={(deadline, deadlineTime) => updateTaskSchedule(task.id, deadline, deadlineTime)}
+                    />
+                  )}
                   {!task.isDone && (
                     <button
                       type="button"

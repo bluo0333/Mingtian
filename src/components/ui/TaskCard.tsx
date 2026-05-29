@@ -30,7 +30,7 @@ export default function TaskCard({
     <motion.div
       whileHover={{ y: -1 }}
       transition={{ type: 'spring', stiffness: 320, damping: 23 }}
-      className={`card-soft p-4 sm:p-5 flex items-center gap-3 transition-shadow ${
+      className={`card-soft p-4 sm:p-5 flex items-start gap-3 transition-shadow ${
         isFocus
           ? 'ring-2 ring-jade-400/55 dark:ring-dark-400/55 ring-offset-1 ring-offset-[#f5f2eb] dark:ring-offset-charcoal-900'
           : isInProgress
@@ -44,27 +44,27 @@ export default function TaskCard({
             event.stopPropagation();
             onToggleDone();
           }}
-          className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${circleClasses}`}
+          className={`mt-1 w-6 h-6 shrink-0 rounded-full border-2 flex items-center justify-center ${circleClasses}`}
           aria-label={isDone ? `Task ${name} is done` : `Mark ${name} as done`}
         >
           {isDone && <Check size={12} className="text-white" />}
         </button>
       ) : (
-        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${circleClasses}`}>
+        <div className={`mt-1 w-6 h-6 shrink-0 rounded-full border-2 flex items-center justify-center ${circleClasses}`}>
           {isDone && <Check size={12} className="text-white" />}
         </div>
       )}
       <div className="flex-1 min-w-0">
-        <div className={`text-lg font-semibold ${isDone ? 'text-jade-400 dark:text-charcoal-400 line-through' : 'jade-text dark:text-dark-100'}`}>
+        <div className={`text-lg font-semibold leading-snug break-words [overflow-wrap:anywhere] ${isDone ? 'text-jade-400 dark:text-charcoal-400 line-through' : 'jade-text dark:text-dark-100'}`}>
           {name}
         </div>
         {steps && (
-          <div className="text-sm text-muted dark:text-charcoal-200 mt-1">
+          <div className="text-sm text-muted dark:text-charcoal-200 mt-1 break-words [overflow-wrap:anywhere]">
             {steps}
           </div>
         )}
       </div>
-      <div className={`text-xs font-semibold px-3 py-1.5 rounded-full ${
+      <div className={`mt-1 shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full ${
         isDone ? 'text-success bg-success/10 dark:text-success dark:bg-success/15' : 'text-jade-700 bg-jade-100/70 dark:text-dark-200 dark:bg-charcoal-700/70'
       }`}>
         +{xp} XP
@@ -76,7 +76,7 @@ export default function TaskCard({
             event.stopPropagation();
             onDelete();
           }}
-          className="text-jade-400 hover:text-red-500 dark:text-charcoal-300 dark:hover:text-red-400 transition-colors"
+          className="mt-1 shrink-0 text-jade-400 hover:text-red-500 dark:text-charcoal-300 dark:hover:text-red-400 transition-colors"
           aria-label={`Delete ${name}`}
         >
           <Trash2 size={15} />

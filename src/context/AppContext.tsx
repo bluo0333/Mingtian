@@ -64,6 +64,7 @@ type Action =
   | { type: 'COMPLETE_TASK'; payload: { taskId: string } }
   | { type: 'COMPLETE_STEP'; payload: { taskId: string; stepId: string } }
   | { type: 'ADD_STEP'; payload: { taskId: string; step: TaskStep } }
+  | { type: 'UPDATE_TASK_SCHEDULE'; payload: { taskId: string; deadline?: string; deadlineTime?: string } }
   | { type: 'DELETE_TASK'; payload: { taskId: string } }
   | { type: 'SET_TASK_PLANNED'; payload: { taskId: string; isPlanned: boolean } }
   | { type: 'ADD_THOUGHT'; payload: Thought }
@@ -80,6 +81,10 @@ type Action =
 
 const STORAGE_KEY = 'mingtian_app_state_v1';
 const XP_PER_LEVEL = 100;
+export const TASK_NAME_MAX_LENGTH = 80;
+
+const limitTaskName = (name: string): string =>
+  name.trim().slice(0, TASK_NAME_MAX_LENGTH);
 
 const initialState: AppState = {
   user: {
@@ -133,10 +138,11 @@ function reducer(state: AppState, action: Action): AppState {
 
     case 'COMPLETE_TASK': {
       const targetTask = state.tasks.find((task) => task.id === action.payload.taskId);
-      if (!targetTask || targetTask.isDone) {
+      if (!targetTask) {
         return state;
       }
 
+      const nextDone = !targetTask.isDone;
       const updatedTasks = state.tasks.map((task) => {
         if (task.id !== action.payload.taskId) {
           return task;
@@ -144,56 +150,62 @@ function reducer(state: AppState, action: Action): AppState {
 
         return {
           ...task,
-          isDone: true,
+          isDone: nextDone,
           isInProgress: false,
-          completedAt: Date.now(),
-          steps: task.steps.map((step) => ({ ...step, done: true })),
+          completedAt: nextDone ? Date.now() : undefined,
+          steps: task.steps.map((step) => ({ ...step, done: nextDone })),
         };
       });
 
       return {
         ...state,
         tasks: updatedTasks,
-        xp: state.xp + targetTask.xp,
+        xp: nextDone ? state.xp + targetTask.xp : Math.max(0, state.xp - targetTask.xp),
       };
     }
 
     case 'COMPLETE_STEP': {
       const targetTask = state.tasks.find((task) => task.id === action.payload.taskId);
-      if (!targetTask || targetTask.isDone) {
+      if (!targetTask) {
         return state;
       }
 
       const targetStep = targetTask.steps.find((step) => step.id === action.payload.stepId);
-      if (!targetStep || targetStep.done) {
+      if (!targetStep) {
         return state;
       }
 
-      let taskJustCompleted = false;
+      let nextTaskDone = targetTask.isDone;
       const updatedTasks = state.tasks.map((task) => {
         if (task.id !== action.payload.taskId) {
           return task;
         }
 
         const updatedSteps = task.steps.map((step) =>
-          step.id === action.payload.stepId ? { ...step, done: true } : step,
+          step.id === action.payload.stepId ? { ...step, done: !step.done } : step,
         );
         const allDone = updatedSteps.length > 0 && updatedSteps.every((step) => step.done);
-        taskJustCompleted = allDone;
+        nextTaskDone = allDone;
 
         return {
           ...task,
           steps: updatedSteps,
           isDone: allDone,
           isInProgress: !allDone,
-          completedAt: allDone ? Date.now() : task.completedAt,
+          completedAt: allDone ? Date.now() : undefined,
         };
       });
+      const xpDelta =
+        !targetTask.isDone && nextTaskDone
+          ? targetTask.xp
+          : targetTask.isDone && !nextTaskDone
+          ? -targetTask.xp
+          : 0;
 
       return {
         ...state,
         tasks: updatedTasks,
-        xp: taskJustCompleted ? state.xp + targetTask.xp : state.xp,
+        xp: Math.max(0, state.xp + xpDelta),
       };
     }
 
@@ -203,6 +215,20 @@ function reducer(state: AppState, action: Action): AppState {
         tasks: state.tasks.map((task) =>
           task.id === action.payload.taskId
             ? { ...task, steps: [...task.steps, action.payload.step] }
+            : task,
+        ),
+      };
+
+    case 'UPDATE_TASK_SCHEDULE':
+      return {
+        ...state,
+        tasks: state.tasks.map((task) =>
+          task.id === action.payload.taskId
+            ? {
+                ...task,
+                deadline: action.payload.deadline || undefined,
+                deadlineTime: action.payload.deadlineTime || undefined,
+              }
             : task,
         ),
       };
@@ -362,6 +388,7 @@ interface AppContextValue {
   completeTask: (taskId: string) => void;
   completeStep: (taskId: string, stepId: string) => void;
   addStep: (taskId: string, stepText: string) => void;
+  updateTaskSchedule: (taskId: string, deadline?: string, deadlineTime?: string) => void;
   deleteTask: (taskId: string) => void;
   setTaskPlanned: (taskId: string, isPlanned: boolean) => void;
   addThought: (text: string) => void;
@@ -405,7 +432,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'COMPLETE_ONBOARDING', payload });
       },
       addTask: (payload) => {
-        const name = payload.name.trim();
+        const name = limitTaskName(payload.name);
         if (!name) {
           return;
         }
@@ -440,6 +467,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           type: 'ADD_STEP',
           payload: { taskId, step: { id: createId(), text, done: false } },
         });
+      },
+      updateTaskSchedule: (taskId, deadline, deadlineTime) => {
+        dispatch({ type: 'UPDATE_TASK_SCHEDULE', payload: { taskId, deadline, deadlineTime } });
       },
       deleteTask: (taskId) => {
         dispatch({ type: 'DELETE_TASK', payload: { taskId } });
@@ -478,7 +508,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         const task: Task = {
           id: createId(),
-          name: taskName?.trim() || thought.text,
+          name: limitTaskName(taskName || thought.text),
           steps: [],
           xp: 30,
           isDone: false,
