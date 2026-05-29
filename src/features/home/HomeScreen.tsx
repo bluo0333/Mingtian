@@ -19,6 +19,18 @@ import {
 } from '../../context/AppContext';
 
 const APP_MARK = '\u660e\u5929';
+const LEVEL_MESSAGES = [
+  'Proud of this one',
+  'You made it happen',
+  'Look at you go',
+  'You came back today',
+  'One step lighter',
+  'You kept the promise',
+  'Keep being kind to you',
+];
+
+const randomLevelMessage = (): string =>
+  LEVEL_MESSAGES[Math.floor(Math.random() * LEVEL_MESSAGES.length)];
 
 export default function HomeScreen() {
   const {
@@ -28,6 +40,7 @@ export default function HomeScreen() {
   } = useApp();
   const [showSteps, setShowSteps] = useState(false);
   const [selectedFocusId, setSelectedFocusId] = useState<string | null>(null);
+  const [levelMessage] = useState(randomLevelMessage);
 
   const todaysTasks = getTodaysTasks(tasks);
   const completedToday = todaysTasks.filter((task) => task.isDone).length;
@@ -151,7 +164,13 @@ export default function HomeScreen() {
           <StatCard value={`${completedToday}/${totalToday}`} label="Tasks today" />
         </div>
 
-        <XPCard level={level} current={levelProgress} total={levelMax} totalXp={xp} />
+        <XPCard
+          level={level}
+          message={levelMessage}
+          current={levelProgress}
+          total={levelMax}
+          totalXp={xp}
+        />
 
         {focusTask ? (
           <FocusCard

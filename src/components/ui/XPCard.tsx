@@ -5,12 +5,13 @@ const SEGMENTS = 10;
 
 interface XPCardProps {
   level: number;
+  message: string;
   current: number;
   total: number;
   totalXp: number;
 }
 
-export default function XPCard({ level, current, total, totalXp }: XPCardProps) {
+export default function XPCard({ level, message, current, total, totalXp }: XPCardProps) {
   const filled = total > 0 ? (current / total) * SEGMENTS : 0;
 
   return (
@@ -24,7 +25,7 @@ export default function XPCard({ level, current, total, totalXp }: XPCardProps) 
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 text-base font-bold jade-text dark:text-dark-100">
               <Star size={15} fill="currentColor" />
-              Keep building
+              {message}
             </div>
             <div className="mt-0.5 text-xs font-semibold text-muted dark:text-charcoal-200">
               {totalXp} XP earned
