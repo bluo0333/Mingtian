@@ -25,15 +25,17 @@ const dayStamp = (date: Date): string => {
 const buildTrailDays = (completedDates: Set<string>): TrailDay[] => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() - today.getDay());
 
   return Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(today.getTime() - (6 - index) * DAY_MS);
+    const date = new Date(weekStart.getTime() + index * DAY_MS);
     const stamp = dayStamp(date);
 
     return {
       stamp,
       label: date.toLocaleDateString('en-US', { weekday: 'short' }),
-      isToday: index === 6,
+      isToday: stamp === dayStamp(today),
       isComplete: completedDates.has(stamp),
     };
   });
