@@ -7,6 +7,7 @@ import LatticeFade from '../../components/ui/LatticeFade';
 import FocusCard from '../../components/ui/FocusCard';
 import SectionHeader from '../../components/ui/SectionHeader';
 import StatCard from '../../components/ui/StatCard';
+import StreakTrail from '../../components/ui/StreakTrail';
 import TaskCard from '../../components/ui/TaskCard';
 import XPCard from '../../components/ui/XPCard';
 import {
@@ -58,6 +59,21 @@ export default function HomeScreen() {
   const level = getLevel(xp);
   const levelProgress = getLevelProgress(xp);
   const levelMax = getLevelMax();
+  const completedDates = useMemo(
+    () =>
+      new Set(
+        tasks
+          .filter((task): task is Task & { completedAt: number } => task.isDone && typeof task.completedAt === 'number')
+          .map((task) => {
+            const date = new Date(task.completedAt);
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+          }),
+      ),
+    [tasks],
+  );
 
   useEffect(() => {
     if (selectedFocusId && !incompleteTasks.find((t) => t.id === selectedFocusId)) {
@@ -160,8 +176,10 @@ export default function HomeScreen() {
 
       <div className="px-4 sm:px-5 pt-4 pb-24 space-y-4">
         <div className="grid grid-cols-2 gap-3">
-          <StatCard value={`${streak}`} label="Day streak" isAccent isStreakCard />
-          <StatCard value={`${completedToday}/${totalToday}`} label="Tasks today" />
+          <StreakTrail streak={streak} completedDates={completedDates} />
+          <div className="col-span-2">
+            <StatCard value={`${completedToday}/${totalToday}`} label="Tasks today" />
+          </div>
         </div>
 
         <XPCard
