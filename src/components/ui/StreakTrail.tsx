@@ -18,9 +18,11 @@ interface TrailDay {
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const REVEAL_OFFSET = 150;
-const COLLAPSED_TRAIL_HEIGHT = 56;
-const EXPANDED_TRAIL_HEIGHT = REVEAL_OFFSET + COLLAPSED_TRAIL_HEIGHT;
+const WEEKDAY_HEADER_HEIGHT = 18;
+const REVEAL_OFFSET = 124;
+const TRAIL_ROW_HEIGHT = 56;
+const COLLAPSED_TRAIL_HEIGHT = WEEKDAY_HEADER_HEIGHT + TRAIL_ROW_HEIGHT;
+const EXPANDED_TRAIL_HEIGHT = WEEKDAY_HEADER_HEIGHT + REVEAL_OFFSET + TRAIL_ROW_HEIGHT;
 const smoothTransition = { duration: 0.28, ease: [0.4, 0, 0.2, 1] };
 
 const dayStamp = (date: Date): string => {
@@ -79,9 +81,7 @@ export default function StreakTrail({ streak, completedDates }: StreakTrailProps
   const renderTrailDay = (day: TrailDay, label: string, isCalendarDay = false) => (
     <div
       key={day.stamp}
-      className={`min-w-0 text-center ${
-        isCalendarDay ? (day.isFuture ? 'opacity-60' : day.isCurrentMonth ? '' : 'opacity-45') : ''
-      }`}
+      className={`min-w-0 text-center ${isCalendarDay && day.isFuture ? 'opacity-60' : ''}`}
     >
       <div
         className={`mx-auto flex aspect-square w-full max-w-10 items-center justify-center rounded-full border transition-colors ${
@@ -107,7 +107,7 @@ export default function StreakTrail({ streak, completedDates }: StreakTrailProps
         } ${
           day.isToday
             ? 'text-jade-800 dark:text-dark-100'
-            : isCalendarDay && !day.isCurrentMonth
+            : !day.isCurrentMonth
             ? 'text-muted dark:text-charcoal-500'
             : 'text-muted dark:text-charcoal-300'
         }`}
@@ -155,22 +155,23 @@ export default function StreakTrail({ streak, completedDates }: StreakTrailProps
         transition={smoothTransition}
         className="relative mt-4 overflow-hidden"
       >
+        <div className="grid grid-cols-7 gap-2 pb-2">
+          {weekdayLabels.map((label) => (
+            <div
+              key={label}
+              className="text-center text-[10px] font-bold uppercase leading-none text-muted dark:text-charcoal-300"
+            >
+              {label.slice(0, 2)}
+            </div>
+          ))}
+        </div>
         <motion.div
           aria-hidden={!isExpanded}
           animate={{ opacity: isExpanded ? 1 : 0 }}
           transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
-          className="absolute inset-x-0 top-0"
+          className="absolute inset-x-0"
+          style={{ top: WEEKDAY_HEADER_HEIGHT }}
         >
-          <div className="grid grid-cols-7 gap-2 pb-2">
-            {weekdayLabels.map((label) => (
-              <div
-                key={label}
-                className="text-center text-[10px] font-bold uppercase leading-none text-muted dark:text-charcoal-300"
-              >
-                {label.slice(0, 2)}
-              </div>
-            ))}
-          </div>
           <div className="space-y-3">
             {previousWeeks.map((week) => (
               <div key={week[0].stamp}>
@@ -184,10 +185,11 @@ export default function StreakTrail({ streak, completedDates }: StreakTrailProps
         <motion.div
           animate={{ y: isExpanded ? REVEAL_OFFSET : 0 }}
           transition={smoothTransition}
-          className="absolute inset-x-0 top-0"
+          className="absolute inset-x-0"
+          style={{ top: WEEKDAY_HEADER_HEIGHT }}
         >
           <div className="grid grid-cols-7 gap-2">
-            {days.map((day) => renderTrailDay(day, day.label))}
+            {days.map((day) => renderTrailDay(day, day.dayOfMonth))}
           </div>
         </motion.div>
       </motion.div>
