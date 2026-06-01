@@ -44,6 +44,21 @@ export default function HomeScreen() {
   const [levelMessage] = useState(randomLevelMessage);
 
   const todaysTasks = getTodaysTasks(tasks);
+  const sortedTodaysTasks = useMemo(
+    () =>
+      [...todaysTasks].sort((a, b) => {
+        if (a.isDone !== b.isDone) {
+          return a.isDone ? 1 : -1;
+        }
+
+        if (a.isDone && b.isDone) {
+          return (b.completedAt ?? 0) - (a.completedAt ?? 0);
+        }
+
+        return b.createdAt - a.createdAt;
+      }),
+    [todaysTasks],
+  );
   const completedToday = todaysTasks.filter((task) => task.isDone).length;
   const totalToday = todaysTasks.length;
   const incompleteTasks = todaysTasks.filter((task) => !task.isDone);
@@ -257,15 +272,17 @@ export default function HomeScreen() {
         <section className="space-y-3">
           <SectionHeader title="Today's tasks" />
           {todaysTasks.length > 0 ? (
-            <div className="space-y-3">
-              {todaysTasks.map((task) => {
+            <motion.div layout className="space-y-3">
+              {sortedTodaysTasks.map((task) => {
                 const doneSteps = task.steps.filter((step) => step.done).length;
                 return (
-                  <div
+                  <motion.div
+                    layout
                     key={task.id}
                     onClick={() => {
                       if (!task.isDone) setSelectedFocusId(task.id);
                     }}
+                    transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
                     className={!task.isDone ? 'cursor-pointer' : undefined}
                   >
                     <TaskCard
@@ -277,10 +294,10 @@ export default function HomeScreen() {
                       isFocus={focusTask?.id === task.id && !task.isDone}
                       onToggleDone={() => completeTask(task.id)}
                     />
-                  </div>
+                  </motion.div>
                 );
               })}
-            </div>
+            </motion.div>
           ) : (
             <div className="card-soft p-5 text-sm text-muted dark:text-charcoal-200">
               No tasks yet. Add one from the Tasks page.

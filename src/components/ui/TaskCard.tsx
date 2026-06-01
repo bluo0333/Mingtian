@@ -28,8 +28,12 @@ export default function TaskCard({
 
   return (
     <motion.div
+      layout
       whileHover={{ y: -1 }}
-      transition={{ type: 'spring', stiffness: 320, damping: 23 }}
+      transition={{
+        layout: { duration: 0.28, ease: [0.4, 0, 0.2, 1] },
+        y: { type: 'spring', stiffness: 320, damping: 23 },
+      }}
       className={`card-soft p-4 sm:p-5 flex items-start gap-3 transition-shadow ${
         isFocus
           ? 'ring-2 ring-jade-400/55 dark:ring-dark-400/55 ring-offset-1 ring-offset-[#f5f2eb] dark:ring-offset-charcoal-900'
