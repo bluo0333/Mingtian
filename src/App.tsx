@@ -131,7 +131,7 @@ function LevelUpWatcher() {
     previousLevel.current = level;
   }, [user.onboarded]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!user.onboarded) {
       previousLevel.current = level;
       return;
@@ -159,17 +159,27 @@ function StreakUpWatcher() {
   const navigate = useNavigate();
   const location = useLocation();
   const {
-    state: { lastActiveDate, streak, user },
+    state: { lastActiveDate, streak, xp, user },
   } = useApp();
+  const level = getLevel(xp);
+  const previousLevel = useRef(level);
   const previousActiveDate = useRef(lastActiveDate);
 
   useEffect(() => {
     previousActiveDate.current = lastActiveDate;
+    previousLevel.current = level;
   }, [user.onboarded]);
 
   useLayoutEffect(() => {
     if (!user.onboarded) {
       previousActiveDate.current = lastActiveDate;
+      previousLevel.current = level;
+      return;
+    }
+
+    if (level > previousLevel.current) {
+      previousActiveDate.current = lastActiveDate;
+      previousLevel.current = level;
       return;
     }
 
@@ -188,7 +198,8 @@ function StreakUpWatcher() {
     }
 
     previousActiveDate.current = lastActiveDate;
-  }, [lastActiveDate, location.pathname, navigate, streak, user.onboarded]);
+    previousLevel.current = level;
+  }, [lastActiveDate, level, location.pathname, navigate, streak, user.onboarded]);
 
   return null;
 }

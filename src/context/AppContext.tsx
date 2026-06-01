@@ -556,10 +556,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'CLEAR_TASKS' });
       },
       resetProgress: () => {
+        window.localStorage.removeItem('mingtian_highest_celebrated_level');
         window.localStorage.removeItem('mingtian_last_celebrated_streak_date');
         dispatch({ type: 'RESET_PROGRESS' });
       },
       resetAll: () => {
+        window.localStorage.removeItem('mingtian_highest_celebrated_level');
         window.localStorage.removeItem('mingtian_last_celebrated_streak_date');
         dispatch({ type: 'RESET_ALL' });
       },
