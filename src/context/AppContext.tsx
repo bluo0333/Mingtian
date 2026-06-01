@@ -562,7 +562,26 @@ export const getLevelProgress = (xp: number): number => xp % XP_PER_LEVEL;
 
 export const getLevelMax = (): number => XP_PER_LEVEL;
 
-export const getTodaysTasks = (tasks: Task[]): Task[] => tasks.filter((task) => !task.isPlanned);
+const getTodayStart = (): number => {
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  return todayStart.getTime();
+};
+
+export const getTodaysTasks = (tasks: Task[]): Task[] => {
+  const todayStart = getTodayStart();
+  return tasks.filter((task) => {
+    if (task.isPlanned) {
+      return false;
+    }
+
+    if (!task.isDone) {
+      return true;
+    }
+
+    return typeof task.completedAt === 'number' && task.completedAt >= todayStart;
+  });
+};
 
 export const getPlannedTasks = (tasks: Task[]): Task[] => tasks.filter((task) => task.isPlanned);
 
