@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { BrowserRouter as Router, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import type { ReactElement } from 'react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import Home from './pages/Home';
 import Tasks from './pages/Tasks';
 import Dump from './pages/Dump';
@@ -10,7 +10,15 @@ import Onboarding from './pages/Onboarding';
 import Plan from './pages/Plan';
 import Settings from './pages/Settings';
 import Stats from './pages/Stats';
+import StreakUp from './pages/StreakUp';
 import { getLevel, useApp } from './context/AppContext';
+
+const dayStamp = (date: Date = new Date()): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 function ProtectedRoute({ children }: { children: ReactElement }) {
   const {
@@ -95,6 +103,14 @@ function AnimatedRoutes() {
               </ProtectedRoute>
             )}
           />
+          <Route
+            path="/streak-up"
+            element={(
+              <ProtectedRoute>
+                <StreakUp />
+              </ProtectedRoute>
+            )}
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </motion.div>
@@ -139,10 +155,49 @@ function LevelUpWatcher() {
   return null;
 }
 
+function StreakUpWatcher() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const {
+    state: { lastActiveDate, streak, user },
+  } = useApp();
+  const previousActiveDate = useRef(lastActiveDate);
+
+  useEffect(() => {
+    previousActiveDate.current = lastActiveDate;
+  }, [user.onboarded]);
+
+  useLayoutEffect(() => {
+    if (!user.onboarded) {
+      previousActiveDate.current = lastActiveDate;
+      return;
+    }
+
+    const celebratedDate = window.localStorage.getItem('mingtian_last_celebrated_streak_date');
+    const today = dayStamp();
+    if (
+      lastActiveDate === today &&
+      lastActiveDate !== previousActiveDate.current &&
+      celebratedDate !== today &&
+      location.pathname !== '/streak-up'
+    ) {
+      window.localStorage.setItem('mingtian_last_celebrated_streak_date', today);
+      navigate('/streak-up', {
+        state: { streak, from: location.pathname },
+      });
+    }
+
+    previousActiveDate.current = lastActiveDate;
+  }, [lastActiveDate, location.pathname, navigate, streak, user.onboarded]);
+
+  return null;
+}
+
 function App() {
   return (
     <Router>
       <LevelUpWatcher />
+      <StreakUpWatcher />
       <AnimatedRoutes />
     </Router>
   );

@@ -100,7 +100,12 @@ const initialState: AppState = {
   darkMode: true,
 };
 
-const dayStamp = (date: Date = new Date()): string => date.toISOString().slice(0, 10);
+const dayStamp = (date: Date = new Date()): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 const createId = (): string =>
   `${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
@@ -115,6 +120,33 @@ const parseSteps = (rawSteps: string): TaskStep[] =>
       text,
       done: false,
     }));
+
+const extendStreakForToday = (state: AppState): AppState => {
+  const today = dayStamp();
+  if (state.lastActiveDate === today) {
+    return state;
+  }
+
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStamp = dayStamp(yesterday);
+  const nextStreak = state.lastActiveDate === yesterdayStamp ? state.streak + 1 : 1;
+
+  return {
+    ...state,
+    streak: nextStreak,
+    lastActiveDate: today,
+  };
+};
+
+const hasCompletedTaskToday = (tasks: Task[]): boolean => {
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  return tasks.some(
+    (task) => task.isDone && typeof task.completedAt === 'number' && task.completedAt >= todayStart.getTime(),
+  );
+};
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -142,6 +174,7 @@ function reducer(state: AppState, action: Action): AppState {
         return state;
       }
 
+      const hadCompletedTaskToday = hasCompletedTaskToday(state.tasks);
       const nextDone = !targetTask.isDone;
       const updatedTasks = state.tasks.map((task) => {
         if (task.id !== action.payload.taskId) {
@@ -157,11 +190,13 @@ function reducer(state: AppState, action: Action): AppState {
         };
       });
 
-      return {
+      const nextState = {
         ...state,
         tasks: updatedTasks,
         xp: nextDone ? state.xp + targetTask.xp : Math.max(0, state.xp - targetTask.xp),
       };
+
+      return nextDone && !hadCompletedTaskToday ? extendStreakForToday(nextState) : nextState;
     }
 
     case 'COMPLETE_STEP': {
@@ -175,6 +210,7 @@ function reducer(state: AppState, action: Action): AppState {
         return state;
       }
 
+      const hadCompletedTaskToday = hasCompletedTaskToday(state.tasks);
       let nextTaskDone = targetTask.isDone;
       const updatedTasks = state.tasks.map((task) => {
         if (task.id !== action.payload.taskId) {
@@ -202,11 +238,15 @@ function reducer(state: AppState, action: Action): AppState {
           ? -targetTask.xp
           : 0;
 
-      return {
+      const nextState = {
         ...state,
         tasks: updatedTasks,
         xp: Math.max(0, state.xp + xpDelta),
       };
+
+      return !targetTask.isDone && nextTaskDone && !hadCompletedTaskToday
+        ? extendStreakForToday(nextState)
+        : nextState;
     }
 
     case 'ADD_STEP':
@@ -293,22 +333,7 @@ function reducer(state: AppState, action: Action): AppState {
       };
 
     case 'UPDATE_STREAK': {
-      const today = dayStamp();
-      if (state.lastActiveDate === today) {
-        return state;
-      }
-
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStamp = dayStamp(yesterday);
-
-      const nextStreak = state.lastActiveDate === yesterdayStamp ? state.streak + 1 : 1;
-
-      return {
-        ...state,
-        streak: nextStreak,
-        lastActiveDate: today,
-      };
+      return extendStreakForToday(state);
     }
 
     case 'UPDATE_PROFILE':
@@ -411,10 +436,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     saveState(state);
   }, [state]);
-
-  useEffect(() => {
-    dispatch({ type: 'UPDATE_STREAK' });
-  }, []);
 
   useEffect(() => {
     if (state.darkMode) {
@@ -535,9 +556,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'CLEAR_TASKS' });
       },
       resetProgress: () => {
+        window.localStorage.removeItem('mingtian_last_celebrated_streak_date');
         dispatch({ type: 'RESET_PROGRESS' });
       },
       resetAll: () => {
+        window.localStorage.removeItem('mingtian_last_celebrated_streak_date');
         dispatch({ type: 'RESET_ALL' });
       },
     }),
