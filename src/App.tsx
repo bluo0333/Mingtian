@@ -4,6 +4,7 @@ import type { ReactElement } from 'react';
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import Home from './pages/Home';
 import Tasks from './pages/Tasks';
+import Completed from './pages/Completed';
 import Dump from './pages/Dump';
 import LevelUp from './pages/LevelUp';
 import Onboarding from './pages/Onboarding';
@@ -60,6 +61,14 @@ function AnimatedRoutes() {
             element={(
               <ProtectedRoute>
                 <Tasks />
+              </ProtectedRoute>
+            )}
+          />
+          <Route
+            path="/completed"
+            element={(
+              <ProtectedRoute>
+                <Completed />
               </ProtectedRoute>
             )}
           />

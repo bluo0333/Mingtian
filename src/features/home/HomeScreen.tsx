@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, Settings } from 'lucide-react';
+import { ArrowRight, CalendarDays, Check, Settings } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import BottomNavigation from '../../components/layout/BottomNavigation';
@@ -32,6 +32,13 @@ const LEVEL_MESSAGES = [
 
 const randomLevelMessage = (): string =>
   LEVEL_MESSAGES[Math.floor(Math.random() * LEVEL_MESSAGES.length)];
+
+const dayKey = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 export default function HomeScreen() {
   const {
@@ -107,41 +114,25 @@ export default function HomeScreen() {
     setSelectedFocusId(next.id);
   };
 
-  const [expandedHistory, setExpandedHistory] = useState<Record<string, boolean>>({});
-
-  const historyByDate = useMemo(() => {
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-
-    const completed = tasks
-      .filter((t): t is Task & { completedAt: number } =>
-        t.isDone && typeof t.completedAt === 'number' && t.completedAt < todayStart.getTime(),
-      )
-      .sort((a, b) => b.completedAt - a.completedAt);
-
-    const groupMap = new Map<string, { label: string; items: typeof completed }>();
-    const yesterday = new Date(todayStart);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayKey = yesterday.toISOString().slice(0, 10);
-
-    for (const task of completed) {
-      const d = new Date(task.completedAt);
-      const key = d.toISOString().slice(0, 10);
-      if (!groupMap.has(key)) {
-        const diffDays = Math.round((todayStart.getTime() - d.setHours(0, 0, 0, 0)) / 86400000);
-        const label =
-          key === yesterdayKey
-            ? 'Yesterday'
-            : diffDays < 7
-            ? d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
-            : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-        groupMap.set(key, { label, items: [] });
-      }
-      groupMap.get(key)!.items.push(task);
-    }
-
-    return Array.from(groupMap.values());
-  }, [tasks]);
+  const completedTasks = useMemo(
+    () =>
+      tasks
+        .filter((task): task is Task & { completedAt: number } =>
+          task.isDone && typeof task.completedAt === 'number',
+        )
+        .sort((a, b) => b.completedAt - a.completedAt),
+    [tasks],
+  );
+  const completedTaskCount = completedTasks.length;
+  const latestCompletedTask = completedTasks[0];
+  const latestCompletedLabel = latestCompletedTask
+    ? dayKey(new Date(latestCompletedTask.completedAt)) === dayKey(new Date())
+      ? 'Today'
+      : new Date(latestCompletedTask.completedAt).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+        })
+    : '';
 
   const summarizeSteps = (doneSteps: number, totalSteps: number, isDone: boolean): string => {
     if (totalSteps === 0) {
@@ -305,49 +296,27 @@ export default function HomeScreen() {
           )}
         </section>
 
-        {historyByDate.length > 0 && (
-          <section className="space-y-4 pb-4">
-            <SectionHeader title="Completed" />
-            {historyByDate.map(({ label, items }) => (
-              <div key={label} className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-widest text-muted dark:text-charcoal-400 px-1">
-                  {label}
-                </p>
-                <div className="space-y-2">
-                  {items.map((task) => (
-                    <div key={task.id} className="space-y-2">
-                      <div
-                        onClick={() =>
-                          setExpandedHistory((prev) => ({ ...prev, [task.id]: !prev[task.id] }))
-                        }
-                        className="cursor-pointer"
-                      >
-                        <TaskCard
-                          name={task.name}
-                          steps={`${task.steps.length} steps · ${task.xp} XP earned`}
-                          xp={task.xp}
-                          isDone
-                        />
-                      </div>
-                      {expandedHistory[task.id] && task.steps.length > 0 && (
-                        <div className="ml-9 space-y-2">
-                          {task.steps.map((step) => (
-                            <div key={step.id} className="flex items-center gap-2.5">
-                              <span className="h-[18px] w-[18px] shrink-0 rounded-full border-2 bg-success border-success flex items-center justify-center">
-                                <Check size={10} className="text-white" />
-                              </span>
-                              <span className="text-sm line-through text-muted dark:text-charcoal-300">
-                                {step.text}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+        {completedTaskCount > 0 && (
+          <section className="pb-4">
+            <Link
+              to="/completed"
+              className="card-soft flex items-center justify-between gap-3 p-4 transition-colors hover:border-jade-200 dark:hover:border-dark-500"
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-jade-100/80 text-jade-700 dark:bg-charcoal-700/70 dark:text-dark-200">
+                  <CalendarDays size={18} />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-base font-semibold jade-text dark:text-dark-100">Completed archive</div>
+                  <div className="mt-0.5 text-sm text-muted dark:text-charcoal-200">
+                    {completedTaskCount} completed {completedTaskCount === 1 ? 'task' : 'tasks'}
+                    {' · '}
+                    {latestCompletedLabel}
+                  </div>
                 </div>
               </div>
-            ))}
+              <ArrowRight size={17} className="shrink-0 text-jade-500 dark:text-charcoal-300" />
+            </Link>
           </section>
         )}
       </div>
