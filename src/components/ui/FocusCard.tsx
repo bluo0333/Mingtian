@@ -31,11 +31,7 @@ export default function FocusCard({ eyebrow, task, sub, onStart, onSwitch, isExp
   }, [isExpanded]);
 
   return (
-    <motion.div
-      whileHover={{ y: -2 }}
-      transition={{ type: 'spring', stiffness: 260, damping: 22 }}
-      className="rounded-3xl p-6 relative overflow-hidden border border-jade-500/25 dark:border-dark-500/30 shadow-soft bg-gradient-to-br from-jade-700 via-jade-600 to-jade-500 dark:from-[#18201d] dark:via-[#1b2420] dark:to-[#202b25]"
-    >
+    <div className="rounded-3xl p-6 relative overflow-hidden border border-jade-500/25 dark:border-dark-500/30 shadow-soft bg-gradient-to-br from-jade-700 via-jade-600 to-jade-500 dark:from-[#18201d] dark:via-[#1b2420] dark:to-[#202b25]">
       <div className="absolute -right-8 -top-6 h-24 w-24 rounded-full bg-white/15 dark:bg-dark-400/10 blur-2xl" />
       <div className="flex items-start justify-between mb-2 relative z-10">
         <div className="text-xs font-semibold uppercase tracking-[0.15em] text-cream-100/95 dark:text-dark-300">
@@ -94,6 +90,6 @@ export default function FocusCard({ eyebrow, task, sub, onStart, onSwitch, isExp
           )}
         </button>
       )}
-    </motion.div>
+    </div>
   );
 }

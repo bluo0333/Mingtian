@@ -118,11 +118,7 @@ export default function StreakTrail({ streak, completedDates }: StreakTrailProps
   );
 
   return (
-    <motion.div
-      whileHover={{ y: -2 }}
-      transition={{ type: 'spring', stiffness: 280, damping: 22 }}
-      className="card-soft col-span-2 p-4 sm:p-5"
-    >
+    <div className="card-soft col-span-2 p-4 sm:p-5">
       <div
         role="button"
         tabIndex={0}
@@ -195,6 +191,6 @@ export default function StreakTrail({ streak, completedDates }: StreakTrailProps
           </div>
         </motion.div>
       </motion.div>
-    </motion.div>
+    </div>
   );
 }
