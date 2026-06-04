@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, List } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { flushSync } from 'react-dom';
 import BottomNavigation from '../components/layout/BottomNavigation';
 import SectionHeader from '../components/ui/SectionHeader';
 import TaskCard from '../components/ui/TaskCard';
@@ -68,6 +69,8 @@ export default function Completed() {
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [cellHighlight, setCellHighlight] = useState<string | null>(null);
+  const [monthDirection, setMonthDirection] = useState<1 | -1>(1);
 
   const tasksByDay = useMemo(() => {
     const map = new Map<string, Array<Task & { completedAt: number }>>();
@@ -311,7 +314,7 @@ export default function Completed() {
           <div className="flex items-center justify-between px-4 py-3 border-b border-jade-100/80 dark:border-charcoal-700/60">
             <button
               type="button"
-              onClick={() => setCalendarMonth(new Date(year, month - 1, 1))}
+              onClick={() => { flushSync(() => setCellHighlight(null)); setMonthDirection(-1); setCalendarMonth(new Date(year, month - 1, 1)); }}
               className="flex h-8 w-8 items-center justify-center rounded-full text-jade-600 hover:bg-jade-100/80 dark:text-dark-200 dark:hover:bg-charcoal-700/60 transition-colors"
             >
               <ChevronLeft size={18} />
@@ -319,7 +322,7 @@ export default function Completed() {
             <span className="text-sm font-bold jade-text dark:text-dark-100">{monthLabel}</span>
             <button
               type="button"
-              onClick={() => setCalendarMonth(new Date(year, month + 1, 1))}
+              onClick={() => { flushSync(() => setCellHighlight(null)); setMonthDirection(1); setCalendarMonth(new Date(year, month + 1, 1)); }}
               className="flex h-8 w-8 items-center justify-center rounded-full text-jade-600 hover:bg-jade-100/80 dark:text-dark-200 dark:hover:bg-charcoal-700/60 transition-colors"
             >
               <ChevronRight size={18} />
@@ -341,6 +344,21 @@ export default function Completed() {
           </div>
 
           {/* Day cells */}
+          <div className="relative overflow-hidden">
+          <AnimatePresence mode="popLayout" custom={monthDirection} initial={false}>
+          <motion.div
+            key={`${year}-${month}`}
+            custom={monthDirection}
+            variants={{
+              enter: (dir: number) => ({ y: dir > 0 ? '100%' : '-100%' }),
+              center: { y: 0 },
+              exit: (dir: number) => ({ y: dir > 0 ? '-100%' : '100%' }),
+            }}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ type: 'spring', stiffness: 300, damping: 30, mass: 1 }}
+          >
           <div className="grid grid-cols-7">
             {cells.map(({ day, monthOffset }, i) => {
               const isLastInRow = (i + 1) % 7 === 0;
@@ -359,7 +377,7 @@ export default function Completed() {
               const key = `${cellYear}-${String(normalizedMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
               const isAdjacentMonth = monthOffset !== 0;
               const hasTasks = tasksByDay.has(key);
-              const isSelected = selectedDay === key;
+              const isSelected = cellHighlight === key && !isAdjacentMonth;
               const isToday = key === todayKey;
 
               return (
@@ -368,10 +386,18 @@ export default function Completed() {
                   type="button"
                   onClick={() => {
                     if (isAdjacentMonth) {
+                      flushSync(() => setCellHighlight(null));
+                      setMonthDirection(monthOffset as 1 | -1);
                       setCalendarMonth(new Date(cellYear, normalizedMonth, 1));
+                      setCellHighlight(key);
+                      setSelectedDay(key);
+                      setExpandedDays((prev) => ({ ...prev, [key]: true }));
+                    } else {
+                      const next = isSelected ? null : key;
+                      setCellHighlight(next);
+                      setSelectedDay(next);
+                      setExpandedDays((prev) => ({ ...prev, [key]: !isSelected }));
                     }
-                    setSelectedDay(isSelected ? null : key);
-                    setExpandedDays((prev) => ({ ...prev, [key]: !isSelected }));
                   }}
                   className={`relative h-14 flex flex-col items-center justify-center gap-1 transition-colors ${borderClasses} ${
                     isSelected
@@ -408,6 +434,9 @@ export default function Completed() {
                 </button>
               );
             })}
+          </div>
+          </motion.div>
+          </AnimatePresence>
           </div>
         </div>
 
