@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { CalendarDays, Check, ChevronDown } from 'lucide-react';
+import { CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, List } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import BottomNavigation from '../components/layout/BottomNavigation';
 import SectionHeader from '../components/ui/SectionHeader';
@@ -25,6 +25,8 @@ type CompletedWeek = {
 type ArchiveSection =
   | { type: 'day'; day: CompletedGroup }
   | { type: 'week'; week: CompletedWeek };
+
+const DAY_HEADERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 const dayKey = (date: Date): string => {
   const year = date.getFullYear();
@@ -60,6 +62,23 @@ export default function Completed() {
   const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
   const [expandedWeeks, setExpandedWeeks] = useState<Record<string, boolean>>({});
   const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
+  const [view, setView] = useState<'list' | 'calendar'>('list');
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+
+  const tasksByDay = useMemo(() => {
+    const map = new Map<string, Array<Task & { completedAt: number }>>();
+    for (const task of tasks) {
+      if (!task.isDone || typeof task.completedAt !== 'number') continue;
+      const key = dayKey(new Date(task.completedAt));
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(task as Task & { completedAt: number });
+    }
+    return map;
+  }, [tasks]);
 
   const sections = useMemo<ArchiveSection[]>(() => {
     const completed = tasks
@@ -240,6 +259,168 @@ export default function Completed() {
     );
   };
 
+  const renderCalendar = () => {
+    const year = calendarMonth.getFullYear();
+    const month = calendarMonth.getMonth();
+    const firstDayOfWeek = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const todayKey = dayKey(new Date());
+    const monthLabel = calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+    const raw: (number | null)[] = [
+      ...Array(firstDayOfWeek).fill(null),
+      ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+    ];
+    // pad to complete the last row
+    const totalCells = Math.ceil(raw.length / 7) * 7;
+    const cells: (number | null)[] = [...raw, ...Array(totalCells - raw.length).fill(null)];
+
+    const selectedTasks = selectedDay ? (tasksByDay.get(selectedDay) ?? []) : [];
+    const selectedGroup = selectedDay
+      ? (() => {
+          const date = new Date(`${selectedDay}T00:00:00`);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const yesterday = new Date(today);
+          yesterday.setDate(yesterday.getDate() - 1);
+          const label =
+            selectedDay === dayKey(today)
+              ? 'Today'
+              : selectedDay === dayKey(yesterday)
+              ? 'Yesterday'
+              : date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+          return {
+            key: selectedDay,
+            label,
+            weekday: date.toLocaleDateString('en-US', { weekday: 'short' }),
+            day: date.toLocaleDateString('en-US', { day: 'numeric' }),
+            month: date.toLocaleDateString('en-US', { month: 'short' }),
+            items: selectedTasks,
+          } as CompletedGroup;
+        })()
+      : null;
+
+    return (
+      <div className="space-y-4">
+        <div className="card-soft overflow-hidden">
+          {/* Month navigation */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-jade-100/80 dark:border-charcoal-700/60">
+            <button
+              type="button"
+              onClick={() => {
+                setCalendarMonth(new Date(year, month - 1, 1));
+                setSelectedDay(null);
+              }}
+              className="flex h-8 w-8 items-center justify-center rounded-full text-jade-600 hover:bg-jade-100/80 dark:text-dark-200 dark:hover:bg-charcoal-700/60 transition-colors"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <span className="text-sm font-bold jade-text dark:text-dark-100">{monthLabel}</span>
+            <button
+              type="button"
+              onClick={() => {
+                setCalendarMonth(new Date(year, month + 1, 1));
+                setSelectedDay(null);
+              }}
+              className="flex h-8 w-8 items-center justify-center rounded-full text-jade-600 hover:bg-jade-100/80 dark:text-dark-200 dark:hover:bg-charcoal-700/60 transition-colors"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+
+          {/* Day-of-week headers */}
+          <div className="grid grid-cols-7 border-b border-jade-100/80 dark:border-charcoal-700/60">
+            {DAY_HEADERS.map((d, i) => (
+              <div
+                key={i}
+                className={`text-center text-[11px] font-semibold text-muted dark:text-charcoal-300 py-2 ${
+                  i < 6 ? 'border-r border-jade-100/80 dark:border-charcoal-700/60' : ''
+                }`}
+              >
+                {d}
+              </div>
+            ))}
+          </div>
+
+          {/* Day cells */}
+          <div className="grid grid-cols-7">
+            {cells.map((d, i) => {
+              const isLastInRow = (i + 1) % 7 === 0;
+              const isLastRow = i >= cells.length - 7;
+              const borderClasses = [
+                !isLastInRow ? 'border-r' : '',
+                !isLastRow ? 'border-b' : '',
+                'border-jade-100/80 dark:border-charcoal-700/60',
+              ].join(' ');
+
+              if (d === null) {
+                return <div key={i} className={`h-14 ${borderClasses}`} />;
+              }
+
+              const key = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+              const hasTasks = tasksByDay.has(key);
+              const isSelected = selectedDay === key;
+              const isToday = key === todayKey;
+
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setSelectedDay(isSelected ? null : key)}
+                  className={`relative h-14 flex flex-col items-center justify-center gap-1 transition-colors ${borderClasses} ${
+                    isSelected
+                      ? 'bg-jade-600 dark:bg-dark-300'
+                      : isToday
+                      ? 'bg-jade-100/60 dark:bg-charcoal-700/50'
+                      : hasTasks
+                      ? 'hover:bg-jade-50 dark:hover:bg-charcoal-700/40'
+                      : 'hover:bg-jade-50/40 dark:hover:bg-charcoal-700/20'
+                  }`}
+                >
+                  <span
+                    className={`text-sm font-semibold leading-none ${
+                      isSelected
+                        ? 'text-white dark:text-charcoal-900'
+                        : isToday
+                        ? 'jade-text dark:text-dark-100'
+                        : hasTasks
+                        ? 'jade-text dark:text-dark-200'
+                        : 'text-muted dark:text-charcoal-400'
+                    }`}
+                  >
+                    {d}
+                  </span>
+                  {hasTasks && (
+                    <span
+                      className={`h-1 w-1 rounded-full ${
+                        isSelected ? 'bg-white/70 dark:bg-charcoal-900/60' : 'bg-jade-500 dark:bg-dark-300'
+                      }`}
+                    />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Selected day tasks */}
+        <AnimatePresence mode="wait">
+          {selectedGroup && selectedGroup.items.length > 0 && (
+            <motion.div
+              key={selectedDay}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
+            >
+              {renderDay(selectedGroup)}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen">
       <div className="hero-gradient text-white dark:text-dark-200 rounded-b-[2rem] overflow-hidden">
@@ -252,9 +433,39 @@ export default function Completed() {
       </div>
 
       <div className="px-4 sm:px-5 pt-4 pb-24 space-y-4">
-        <SectionHeader title="Task history" />
+        <div className="flex items-center justify-between">
+          <SectionHeader title="Task history" />
+          <div className="flex items-center gap-1 rounded-xl bg-jade-100/80 p-1 dark:bg-charcoal-700/60">
+            <button
+              type="button"
+              onClick={() => setView('list')}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                view === 'list'
+                  ? 'bg-white text-jade-700 shadow-sm dark:bg-charcoal-600 dark:text-dark-100'
+                  : 'text-jade-600 dark:text-charcoal-300'
+              }`}
+            >
+              <List size={13} />
+              List
+            </button>
+            <button
+              type="button"
+              onClick={() => setView('calendar')}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                view === 'calendar'
+                  ? 'bg-white text-jade-700 shadow-sm dark:bg-charcoal-600 dark:text-dark-100'
+                  : 'text-jade-600 dark:text-charcoal-300'
+              }`}
+            >
+              <CalendarDays size={13} />
+              Calendar
+            </button>
+          </div>
+        </div>
 
-        {sections.length > 0 ? (
+        {view === 'calendar' ? (
+          renderCalendar()
+        ) : sections.length > 0 ? (
           <div className="space-y-3">
             {sections.map((section) => {
               if (section.type === 'day') {

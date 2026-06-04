@@ -44,7 +44,7 @@ function AnimatedRoutes() {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.12, ease: 'easeInOut' }}
-        className="fixed inset-0 overflow-y-auto cream-bg dark:bg-charcoal-900 text-ink-900 dark:text-dark-100"
+        className="fixed inset-0 overflow-y-auto [scrollbar-gutter:stable] cream-bg dark:bg-charcoal-900 text-ink-900 dark:text-dark-100"
       >
         <Routes location={location}>
           <Route path="/onboarding" element={<Onboarding />} />
