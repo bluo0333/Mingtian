@@ -267,13 +267,17 @@ export default function Completed() {
     const todayKey = dayKey(new Date());
     const monthLabel = calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-    const raw: (number | null)[] = [
-      ...Array(firstDayOfWeek).fill(null),
-      ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
-    ];
-    // pad to complete the last row
-    const totalCells = Math.ceil(raw.length / 7) * 7;
-    const cells: (number | null)[] = [...raw, ...Array(totalCells - raw.length).fill(null)];
+    type Cell = { day: number; monthOffset: 0 | -1 | 1 };
+    const daysInPrevMonth = new Date(year, month, 0).getDate();
+    const currentCells: Cell[] = Array.from({ length: daysInMonth }, (_, i) => ({ day: i + 1, monthOffset: 0 }));
+    const leadCells: Cell[] = Array.from({ length: firstDayOfWeek }, (_, i) => ({
+      day: daysInPrevMonth - firstDayOfWeek + 1 + i,
+      monthOffset: -1,
+    }));
+    const raw = [...leadCells, ...currentCells];
+    const trailCount = (7 - (raw.length % 7)) % 7;
+    const trailCells: Cell[] = Array.from({ length: trailCount }, (_, i) => ({ day: i + 1, monthOffset: 1 }));
+    const cells: Cell[] = [...raw, ...trailCells];
 
     const selectedTasks = selectedDay ? (tasksByDay.get(selectedDay) ?? []) : [];
     const selectedGroup = selectedDay
@@ -307,10 +311,7 @@ export default function Completed() {
           <div className="flex items-center justify-between px-4 py-3 border-b border-jade-100/80 dark:border-charcoal-700/60">
             <button
               type="button"
-              onClick={() => {
-                setCalendarMonth(new Date(year, month - 1, 1));
-                setSelectedDay(null);
-              }}
+              onClick={() => setCalendarMonth(new Date(year, month - 1, 1))}
               className="flex h-8 w-8 items-center justify-center rounded-full text-jade-600 hover:bg-jade-100/80 dark:text-dark-200 dark:hover:bg-charcoal-700/60 transition-colors"
             >
               <ChevronLeft size={18} />
@@ -318,10 +319,7 @@ export default function Completed() {
             <span className="text-sm font-bold jade-text dark:text-dark-100">{monthLabel}</span>
             <button
               type="button"
-              onClick={() => {
-                setCalendarMonth(new Date(year, month + 1, 1));
-                setSelectedDay(null);
-              }}
+              onClick={() => setCalendarMonth(new Date(year, month + 1, 1))}
               className="flex h-8 w-8 items-center justify-center rounded-full text-jade-600 hover:bg-jade-100/80 dark:text-dark-200 dark:hover:bg-charcoal-700/60 transition-colors"
             >
               <ChevronRight size={18} />
@@ -344,7 +342,7 @@ export default function Completed() {
 
           {/* Day cells */}
           <div className="grid grid-cols-7">
-            {cells.map((d, i) => {
+            {cells.map(({ day, monthOffset }, i) => {
               const isLastInRow = (i + 1) % 7 === 0;
               const isLastRow = i >= cells.length - 7;
               const borderClasses = [
@@ -353,11 +351,13 @@ export default function Completed() {
                 'border-jade-100/80 dark:border-charcoal-700/60',
               ].join(' ');
 
-              if (d === null) {
-                return <div key={i} className={`h-14 ${borderClasses}`} />;
-              }
-
-              const key = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+              const cellMonth = month + monthOffset;
+              const cellYear = monthOffset === -1 && month === 0 ? year - 1
+                : monthOffset === 1 && month === 11 ? year + 1
+                : year;
+              const normalizedMonth = ((cellMonth % 12) + 12) % 12;
+              const key = `${cellYear}-${String(normalizedMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+              const isAdjacentMonth = monthOffset !== 0;
               const hasTasks = tasksByDay.has(key);
               const isSelected = selectedDay === key;
               const isToday = key === todayKey;
@@ -366,13 +366,19 @@ export default function Completed() {
                 <button
                   key={key}
                   type="button"
-                  onClick={() => setSelectedDay(isSelected ? null : key)}
+                  onClick={() => {
+                    if (isAdjacentMonth) {
+                      setCalendarMonth(new Date(cellYear, normalizedMonth, 1));
+                    }
+                    setSelectedDay(isSelected ? null : key);
+                    setExpandedDays((prev) => ({ ...prev, [key]: !isSelected }));
+                  }}
                   className={`relative h-14 flex flex-col items-center justify-center gap-1 transition-colors ${borderClasses} ${
                     isSelected
                       ? 'bg-jade-600 dark:bg-dark-300'
                       : isToday
                       ? 'bg-jade-100/60 dark:bg-charcoal-700/50'
-                      : hasTasks
+                      : hasTasks && !isAdjacentMonth
                       ? 'hover:bg-jade-50 dark:hover:bg-charcoal-700/40'
                       : 'hover:bg-jade-50/40 dark:hover:bg-charcoal-700/20'
                   }`}
@@ -381,6 +387,8 @@ export default function Completed() {
                     className={`text-sm font-semibold leading-none ${
                       isSelected
                         ? 'text-white dark:text-charcoal-900'
+                        : isAdjacentMonth
+                        ? 'text-jade-300/60 dark:text-charcoal-600'
                         : isToday
                         ? 'jade-text dark:text-dark-100'
                         : hasTasks
@@ -388,7 +396,7 @@ export default function Completed() {
                         : 'text-muted dark:text-charcoal-400'
                     }`}
                   >
-                    {d}
+                    {day}
                   </span>
                   {hasTasks && (
                     <span
@@ -412,8 +420,12 @@ export default function Completed() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 8 }}
               transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
+              className="card-soft p-4 space-y-3"
             >
-              {renderDay(selectedGroup)}
+              <div className="text-sm font-semibold jade-text dark:text-dark-100">
+                {selectedGroup.label}
+              </div>
+              {renderTaskList(selectedGroup.items)}
             </motion.div>
           )}
         </AnimatePresence>
