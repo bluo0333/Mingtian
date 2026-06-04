@@ -376,9 +376,31 @@ export default function Completed() {
               const normalizedMonth = ((cellMonth % 12) + 12) % 12;
               const key = `${cellYear}-${String(normalizedMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
               const isAdjacentMonth = monthOffset !== 0;
-              const hasTasks = tasksByDay.has(key);
+              const taskCount = isAdjacentMonth ? 0 : (tasksByDay.get(key)?.length ?? 0);
+              const activityLevel = taskCount === 0 ? 0 : taskCount === 1 ? 1 : taskCount <= 3 ? 2 : taskCount <= 6 ? 3 : 4;
               const isSelected = cellHighlight === key && !isAdjacentMonth;
               const isToday = key === todayKey;
+
+              const ACTIVITY_BG = [
+                '',
+                'bg-jade-200 dark:bg-dark-800/70',
+                'bg-jade-400/80 dark:bg-dark-600/70',
+                'bg-jade-600/80 dark:bg-dark-400/80',
+                'bg-jade-800/80 dark:bg-dark-200/80',
+              ];
+
+              const cellBg = isAdjacentMonth
+                ? 'hover:bg-jade-50/40 dark:hover:bg-charcoal-700/20'
+                : `${ACTIVITY_BG[activityLevel]} hover:brightness-95`;
+
+
+              const textColor = isAdjacentMonth
+                ? 'text-jade-300/50 dark:text-charcoal-600'
+                : activityLevel >= 3
+                ? 'text-white dark:text-charcoal-900'
+                : activityLevel >= 1 || isToday
+                ? 'jade-text dark:text-dark-100'
+                : 'text-muted dark:text-charcoal-400';
 
               return (
                 <button
@@ -399,37 +421,16 @@ export default function Completed() {
                       setExpandedDays((prev) => ({ ...prev, [key]: !isSelected }));
                     }
                   }}
-                  className={`relative h-14 flex flex-col items-center justify-center gap-1 transition-colors ${borderClasses} ${
-                    isSelected
-                      ? 'bg-jade-600 dark:bg-dark-300'
-                      : isToday
-                      ? 'bg-jade-100/60 dark:bg-charcoal-700/50'
-                      : hasTasks && !isAdjacentMonth
-                      ? 'hover:bg-jade-50 dark:hover:bg-charcoal-700/40'
-                      : 'hover:bg-jade-50/40 dark:hover:bg-charcoal-700/20'
-                  }`}
+                  className={`relative h-14 flex flex-col items-center justify-center gap-1 transition-colors ${borderClasses} ${cellBg}`}
                 >
-                  <span
-                    className={`text-sm font-semibold leading-none ${
-                      isSelected
-                        ? 'text-white dark:text-charcoal-900'
-                        : isAdjacentMonth
-                        ? 'text-jade-300/60 dark:text-charcoal-600'
-                        : isToday
-                        ? 'jade-text dark:text-dark-100'
-                        : hasTasks
-                        ? 'jade-text dark:text-dark-200'
-                        : 'text-muted dark:text-charcoal-400'
-                    }`}
-                  >
+                  {isSelected && (
+                    <span className="pointer-events-none absolute inset-0 border-2 border-jade-900 dark:border-dark-100" />
+                  )}
+                  <span className={`text-sm font-semibold leading-none ${textColor}`}>
                     {day}
                   </span>
-                  {hasTasks && (
-                    <span
-                      className={`h-1 w-1 rounded-full ${
-                        isSelected ? 'bg-white/70 dark:bg-charcoal-900/60' : 'bg-jade-500 dark:bg-dark-300'
-                      }`}
-                    />
+                  {isToday && (
+                    <span className={`h-1 w-1 rounded-full ${activityLevel >= 3 ? 'bg-white/70 dark:bg-charcoal-900/60' : 'bg-jade-500 dark:bg-dark-300'}`} />
                   )}
                 </button>
               );
